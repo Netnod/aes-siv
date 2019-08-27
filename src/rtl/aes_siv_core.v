@@ -52,12 +52,13 @@ module aes_siv_core(
                     input wire            start,
 
                     input wire [15 :0]    ad_start,
-                    input wire [15 :0]    ad_blocks,
-                    input wire [7 : 0]    ad_final_size,
+                    input wire [19 :0]    ad_length,
+
+                    input wire [15 :0]    nonce_start,
+                    input wire [19 :0]    nonce_length,
 
                     input wire [15 :0]    pc_start,
-                    input wire [15 :0]    pc_blocks,
-                    input wire [7 : 0]    pc_final_size,
+                    input wire [19 :0]    pc_length,
 
                     output wire           cs,
                     output wire           we,
@@ -175,6 +176,10 @@ module aes_siv_core(
   reg [1 : 0]    ctrl_d;
 
   reg            update_v;
+
+  reg [7 : 0]    ad_final_size;
+  reg [7 : 0]    noncefinal_size;
+  reg [7 : 0]    pc_final_size;
 
 
   //----------------------------------------------------------------

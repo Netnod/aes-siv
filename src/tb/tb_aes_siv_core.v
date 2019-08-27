@@ -80,11 +80,11 @@ module tb_aes_siv_core();
   reg            dut_mode;
   reg            dut_start;
   reg [15 :0]    dut_ad_start;
-  reg [15 :0]    dut_ad_blocks;
-  reg [7 : 0]    dut_ad_final_size;
+  reg [19 :0]    dut_ad_length;
+  reg [15 :0]    dut_nonce_start;
+  reg [19 :0]    dut_nonce_length;
   reg [15 :0]    dut_pc_start;
-  reg [15 :0]    dut_pc_blocks;
-  reg [7 : 0]    dut_pc_final_size;
+  reg [19 :0]    dut_pc_length;
   wire           dut_cs;
   wire           dut_we;
   reg            dut_ack;
@@ -127,12 +127,13 @@ module tb_aes_siv_core();
                    .start(dut_start),
 
                    .ad_start(dut_ad_start),
-                   .ad_blocks(dut_ad_blocks),
-                   .ad_final_size(dut_ad_final_size),
+                   .ad_length(dut_ad_length),
+
+                   .nonce_start(dut_nonce_start),
+                   .nonce_length(dut_nonce_length),
 
                    .pc_start(dut_pc_start),
-                   .pc_blocks(dut_pc_blocks),
-                   .pc_final_size(dut_pc_final_size),
+                   .pc_length(dut_pc_length),
 
                    .cs(dut_cs),
                    .we(dut_we),
@@ -343,23 +344,23 @@ module tb_aes_siv_core();
       cycle_ctr  = 0;
       error_ctr  = 0;
       tc_ctr     = 0;
-      debug_dut = 0;
+      debug_dut  = 0;
 
-      tb_clk            = 1'h0;
-      tb_reset_n        = 1'h1;
-      dut_encdec        = 1'h0;
-      dut_key           = 512'h0;
-      dut_mode          = 1'h0;
-      dut_start         = 1'h0;
-      dut_ad_start      = 16'h0;
-      dut_ad_blocks     = 16'h0;
-      dut_ad_final_size = 8'h0;
-      dut_pc_start      = 16'h0;
-      dut_pc_blocks     = 16'h0;
-      dut_pc_final_size = 8'h0;
+      tb_clk           = 1'h0;
+      tb_reset_n       = 1'h1;
+      dut_encdec       = 1'h0;
+      dut_key          = 512'h0;
+      dut_mode         = 1'h0;
+      dut_start        = 1'h0;
+      dut_ad_start     = 16'h0;
+      dut_ad_length    = 20'h0;
+      dut_nonce_start  = 16'h0;
+      dut_nonce_length = 20'h0;
+      dut_pc_start     = 16'h0;
+      dut_pc_length    = 20'h0;
 
-      tb_debug          = 1'h1;
-      tb_wait_cycles    = 8'h2;
+      tb_debug         = 1'h1;
+      tb_wait_cycles   = 8'h2;
     end
   endtask // init_sim
 
