@@ -72,6 +72,10 @@ module tb_aes_siv_core();
   reg           tc_correct;
   reg           debug_dut;
   reg           debug_mem;
+  reg           show_aes;
+  reg           show_cmac;
+  reg           show_s2v;
+  reg           show_ctr;
 
   reg            tb_clk;
   reg            tb_reset_n;
@@ -237,36 +241,46 @@ module tb_aes_siv_core();
       $display("\n");
       $display("cycle:  0x%016x", cycle_ctr);
       $display("Inputs and outputs:");
-      $display("ready: 0x%02x, tag: 0x%016x",
-               dut.ready, dut.tag_out);
+      $display("ready: 0x%01x, start: 0x%01x, tag: 0x%016x",
+               dut.ready, dut.start, dut.tag_out);
       $display("");
 
-      $display("AES:");
-      $display("aes_ready: 0x%01x, aes_init: 0x%01x, aes_next = 0x%01x",
-               dut.aes_ready, dut.aes_init, dut.aes_next);
-      $display("aes_keylen: 0x%01x, aes_key: 0x%032x", dut.aes_keylen, dut.aes_key);
-      $display("aes_block: 0x%016x, aes_result: 0x%016x", dut.aes_block, dut.aes_result);
-      $display("");
+      if (show_aes)
+        begin
+          $display("AES:");
+          $display("aes_ready: 0x%01x, aes_init: 0x%01x, aes_next = 0x%01x",
+                   dut.aes_ready, dut.aes_init, dut.aes_next);
+          $display("aes_keylen: 0x%01x, aes_key: 0x%032x", dut.aes_keylen, dut.aes_key);
+          $display("aes_block: 0x%016x, aes_result: 0x%016x", dut.aes_block, dut.aes_result);
+          $display("");
+        end
 
-      $display("CMAC:");
-      $display("cmac_ready: 0x%01x, cmac_init: 0x%01x, cmac_next: 0x%01x, cmac_finalize = 0x%01x,  cmac_final_length = 0x%02x",
-               dut.cmac_ready, dut.cmac_init, dut.cmac_next, dut.cmac_finalize, dut.cmac_final_size);
-      $display("cmac_keylen: 0x%01x, cmac_key: 0x%032x", dut.cmac_keylen, dut.cmac_key);
-      $display("cmac_block: 0x%016x, cmac_result: 0x%016x", dut.cmac_block, dut.cmac_result);
-      $display("");
+      if (show_cmac)
+        begin
+          $display("CMAC:");
+          $display("cmac_ready: 0x%01x, cmac_init: 0x%01x, cmac_next: 0x%01x, cmac_finalize = 0x%01x,  cmac_final_length = 0x%02x",
+                   dut.cmac_ready, dut.cmac_init, dut.cmac_next, dut.cmac_finalize, dut.cmac_final_size);
+          $display("cmac_keylen: 0x%01x, cmac_key: 0x%032x", dut.cmac_keylen, dut.cmac_key);
+          $display("cmac_block: 0x%016x, cmac_result: 0x%016x", dut.cmac_block, dut.cmac_result);
+          $display("");
+        end
 
-      $display("Control and internal states:");
+      if (show_s2v)
+        begin
+          $display("s2v_state_reg: 0x%01x, s2v_state_new: 0x%01x, s2v_state_we: 0x%01x",
+                   dut.s2v_state_reg, dut.s2v_state_new, dut.s2v_state_we);
+          $display("d_reg: 0x%016x, d_new: 0x%016x, d_we: 0x%01x",
+                   dut.d_reg, dut.d_new, dut.d_we);
+          $display("v_reg: 0x%016x, v_we: 0x%01x",
+                   dut.v_reg, dut.v_we);
+          $display("x_reg: 0x%016x, x_new: 0x%016x, x_we: 0x%01x",
+                   dut.x_reg, dut.x_new, dut.x_we);
+          $display("\n");
+        end
+
+      $display("Control:");
       $display("ctrl_reg: 0x%02x, ctrl_new: 0x%02x, ctrl_we: 0x%01x",
                dut.core_ctrl_reg, dut.core_ctrl_new, dut.core_ctrl_we);
-      $display("cmac_inputs: 0x%02x", dut.cmac_inputs);
-      $display("s2v_state_reg: 0x%01x, s2v_state_new: 0x%01x, s2v_state_we: 0x%01x",
-               dut.s2v_state_reg, dut.s2v_state_new, dut.s2v_state_we);
-      $display("d_reg: 0x%016x, d_new: 0x%016x, d_we: 0x%01x",
-               dut.d_reg, dut.d_new, dut.d_we);
-      $display("v_reg: 0x%016x, v_we: 0x%01x",
-               dut.v_reg, dut.v_we);
-      $display("x_reg: 0x%016x, x_new: 0x%016x, x_we: 0x%01x",
-               dut.x_reg, dut.x_new, dut.x_we);
       $display("\n");
     end
   endtask // dump_dut_state
@@ -345,6 +359,12 @@ module tb_aes_siv_core();
       error_ctr  = 0;
       tc_ctr     = 0;
       debug_dut  = 0;
+      debug_mem  = 0;
+
+      show_aes   = 0;
+      show_cmac  = 0;
+      show_s2v   = 0;
+      show_ctr   = 0;
 
       tb_clk           = 1'h0;
       tb_reset_n       = 1'h1;
@@ -624,7 +644,51 @@ module tb_aes_siv_core();
       #(2 * CLK_PERIOD);
       debug_mem = 0;
     end
-  endtask // tc4_s2v_ad1
+  endtask // access_test_mem
+
+  //----------------------------------------------------------------
+  // test_block_bits
+  //
+  // Check that the core calculates the correct number of blocks
+  // and bits in the last block.
+  //----------------------------------------------------------------
+  task test_block_bits;
+    begin : test_block_bits
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+
+      $display("TCY: Check that core calculated number blocks, bits correctly");
+
+      // Set access mux to TB. Write data to address 0x0040.
+      dut_ad_start  = 16'h00a0;
+      dut_ad_length = 20'h10;
+
+      dut_nonce_start  = 16'h55aa;
+      dut_nonce_length = 20'h4e31;
+
+      dut_pc_start  = 16'hbeef;
+      dut_pc_length = 20'h17;
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+
+
+      $display("All calculations should be done. Showing results:");
+      $display("ad_num_blocks: 0x%05x, ad_final_size: 0x%02x",
+               dut.ad_num_blocks_reg, dut.ad_final_size_reg);
+      $display("nonce_num_blocks: 0x%05x, nonce_final_size: 0x%02x",
+               dut.nonce_num_blocks_reg, dut.nonce_final_size_reg);
+      $display("pc_num_blocks: 0x%05x, pc_final_size: 0x%02x",
+               dut.pc_num_blocks_reg, dut.pc_final_size_reg);
+    end
+  endtask // test_block_bits
 
 
   //----------------------------------------------------------------
@@ -639,7 +703,9 @@ module tb_aes_siv_core();
 
       init_sim();
       reset_dut();
-      access_test_mem();
+//      access_test_mem();
+
+      test_block_bits();
 
 //      tc1_reset_state();
 //      tc2_s2v_init();

@@ -94,6 +94,7 @@ module aes_siv_core(
   localparam CTRL_CTR_INIT1     = 5'h11;
   localparam CTRL_CTR_NEXT0     = 5'h12;
   localparam CTRL_CTR_NEXT1     = 5'h13;
+  localparam CTRL_DONE          = 5'h1f;
 
   localparam AEAD_AES_SIV_CMAC_256 = 1'h0;
   localparam AEAD_AES_SIV_CMAC_512 = 1'h1;
@@ -120,6 +121,44 @@ module aes_siv_core(
   reg [127 : 0] block_reg;
   reg           block_we;
 
+  reg [15 : 0]  ad_addr_reg;
+  reg [15 : 0]  ad_addr_new;
+  reg           ad_addr_we;
+  reg           ad_addr_inc;
+
+  reg [15 : 0]  ad_num_blocks_reg;
+  reg [15 : 0]  ad_num_blocks_new;
+  reg           ad_num_blocks_we;
+
+  reg [7 : 0]   ad_final_size_reg;
+  reg [7 : 0]   ad_final_size_new;
+  reg           ad_final_size_we;
+
+  reg [15 : 0]  nonce_addr_reg;
+  reg [15 : 0]  nonce_addr_new;
+  reg           nonce_addr_we;
+  reg           nonce_addr_inc;
+
+  reg [15 : 0]  nonce_num_blocks_reg;
+  reg [15 : 0]  nonce_num_blocks_new;
+  reg           nonce_num_blocks_we;
+  reg [7 : 0]   nonce_final_size_reg;
+  reg [7 : 0]   nonce_final_size_new;
+  reg           nonce_final_size_we;
+
+  reg [15 : 0]  pc_addr_reg;
+  reg [15 : 0]  pc_addr_new;
+  reg           pc_addr_we;
+  reg           pc_addr_inc;
+
+  reg [15 : 0]  pc_num_blocks_reg;
+  reg [15 : 0]  pc_num_blocks_new;
+  reg           pc_num_blocks_we;
+
+  reg [7 : 0]   pc_final_size_reg;
+  reg [7 : 0]   pc_final_size_new;
+  reg           pc_final_size_we;
+
   reg [127 : 0] d_reg;
   reg [127 : 0] d_new;
   reg           d_we;
@@ -139,8 +178,8 @@ module aes_siv_core(
   reg [127 : 0] result_new;
   reg           result_we;
 
-  reg [3 : 0]   core_ctrl_reg;
-  reg [3 : 0]   core_ctrl_new;
+  reg [4 : 0]   core_ctrl_reg;
+  reg [4 : 0]   core_ctrl_new;
   reg           core_ctrl_we;
 
 
@@ -171,6 +210,8 @@ module aes_siv_core(
 
   reg            init_ctr;
   reg            update_ctr;
+
+  reg            s2v_init;
 
   reg            update_d;
   reg [1 : 0]    ctrl_d;
@@ -251,14 +292,23 @@ module aes_siv_core(
     begin: reg_update
       if (!reset_n)
         begin
-          ready_reg      <= 1'h1;
-          block_reg      <= 128'h0;
-          result_reg     <= 128'h0;
-          d_reg          <= 128'h0;
-          v_reg          <= 128'h0;
-          x_reg          <= 128'h0;
-          s2v_state_reg  <= 1'h0;
-          core_ctrl_reg  <= CTRL_IDLE;
+          ready_reg            <= 1'h1;
+          block_reg            <= 128'h0;
+          result_reg           <= 128'h0;
+          d_reg                <= 128'h0;
+          v_reg                <= 128'h0;
+          x_reg                <= 128'h0;
+          ad_addr_reg          <= 16'h0;
+          ad_num_blocks_reg    <= 16'h0;
+          ad_final_size_reg    <= 8'h0;
+          nonce_addr_reg       <= 16'h0;
+          nonce_num_blocks_reg <= 16'h0;
+          nonce_final_size_reg <= 8'h0;
+          pc_addr_reg          <= 16'h0;
+          pc_num_blocks_reg    <= 16'h0;
+          pc_final_size_reg    <= 8'h0;
+          s2v_state_reg        <= 1'h0;
+          core_ctrl_reg        <= CTRL_IDLE;
         end
       else
         begin
@@ -273,6 +323,33 @@ module aes_siv_core(
 
           if (v_we)
             v_reg <= cmac_result;
+
+          if (ad_addr_we)
+            ad_addr_reg <= ad_addr_new;
+
+          if (ad_num_blocks_we)
+            ad_num_blocks_reg <= ad_num_blocks_new;
+
+          if (ad_final_size_we)
+            ad_final_size_reg <= ad_final_size_new;
+
+          if (nonce_addr_we)
+            nonce_addr_reg <= nonce_addr_new;
+
+          if (nonce_num_blocks_we)
+            nonce_num_blocks_reg <= nonce_num_blocks_new;
+
+          if (nonce_final_size_we)
+            nonce_final_size_reg <= nonce_final_size_new;
+
+          if (pc_addr_we)
+            pc_addr_reg <= pc_addr_new;
+
+          if (pc_num_blocks_we)
+            pc_num_blocks_reg <= pc_num_blocks_new;
+
+          if (pc_final_size_we)
+            pc_final_size_reg <= pc_final_size_new;
 
           if (s2v_state_we)
             s2v_state_reg <= s2v_state_new;
@@ -298,13 +375,89 @@ module aes_siv_core(
   //----------------------------------------------------------------
   always @*
     begin : siv_cmac_dp
-      d_new = 128'h0;
-      d_we  = 1'h0;
-      v_we  = 1'h0;
+      d_new                = 128'h0;
+      d_we                 = 1'h0;
+      v_we                 = 1'h0;
+      ad_addr_new          = 16'h0;
+      ad_addr_we           = 1'h0;
+      ad_num_blocks_new    = 16'h0;
+      ad_num_blocks_we     = 1'h0;
+      ad_final_size_new    = 8'h0;
+      ad_final_size_we     = 1'h0;
+      nonce_addr_new       = 16'h0;
+      nonce_addr_we        = 1'h0;
+      nonce_num_blocks_new = 16'h0;
+      nonce_num_blocks_we  = 1'h0;
+      nonce_final_size_new = 8'h0;
+      nonce_final_size_we  = 1'h0;
+      pc_addr_new          = 16'h0;
+      pc_addr_we           = 1'h0;
+      pc_num_blocks_new    = 16'h0;
+      pc_num_blocks_we     = 1'h0;
+      pc_final_size_new    = 8'h0;
+      pc_final_size_we     = 1'h0;
+      cmac_block           = 128'h0;
 
-      cmac_block  = 128'h0;
-      cmac_key    = key[511 : 256];
-      cmac_keylen = mode;
+      cmac_key             = key[511 : 256];
+      cmac_keylen          = mode;
+
+      if (s2v_init)
+        begin
+          ad_addr_new         = ad_start;
+          ad_addr_we          = 1'h1;
+
+          if (ad_length[2 : 0] == 3'h0)
+            begin
+              ad_num_blocks_new   = ad_length[19 : 4];
+              ad_num_blocks_we    = 1'h1;
+              ad_final_size_new   = 8'h80;
+              ad_final_size_we    = 1'h1;
+            end
+          else
+            begin
+              ad_num_blocks_new   = ad_length[19 : 4] + 1'h1;
+              ad_num_blocks_we    = 1'h1;
+              ad_final_size_new   = {ad_length[3 : 0], 3'h0};
+              ad_final_size_we    = 1'h1;
+            end
+
+
+          nonce_addr_new       = nonce_start;
+          nonce_addr_we        = 1'h1;
+
+          if (nonce_length[2 : 0] == 3'h0)
+            begin
+              nonce_num_blocks_new = nonce_length[19 : 4];
+              nonce_num_blocks_we  = 1'h1;
+              nonce_final_size_new = 8'h80;
+              nonce_final_size_we  = 1'h1;
+            end
+          else
+            begin
+              nonce_num_blocks_new = nonce_length[19 : 4] + 1'h1;
+              nonce_num_blocks_we  = 1'h1;
+              nonce_final_size_new = {nonce_length[3 : 0], 3'h0};
+              nonce_final_size_we  = 1'h1;
+            end
+
+          pc_addr_new         = pc_start;
+          pc_addr_we          = 1'h1;
+
+          if (pc_length[2 : 0] == 3'h0)
+            begin
+              pc_num_blocks_new = pc_length[19 : 4];
+              pc_num_blocks_we  = 1'h1;
+              pc_final_size_new = 8'h80;
+              pc_final_size_we  = 1'h1;
+            end
+          else
+            begin
+              pc_num_blocks_new = pc_length[19 : 4] + 1'h1;
+              pc_num_blocks_we  = 1'h1;
+              pc_final_size_new = {pc_length[3 : 0], 3'h0};
+              pc_final_size_we  = 1'h1;
+            end
+        end // if (s2v_init)
 
       case (cmac_inputs)
         CMAC_ZEROES: cmac_block = 128'h0;
@@ -378,6 +531,7 @@ module aes_siv_core(
       cmac_init       = 1'h0;
       cmac_next       = 1'h0;
       cmac_finalize   = 1'h0;
+      s2v_init        = 1'h0;
       s2v_state_new   = 1'h0;
       s2v_state_we    = 1'h0;
       init_ctr        = 1'h0;
@@ -397,6 +551,11 @@ module aes_siv_core(
           begin
             if (start)
               begin
+                ready_new     = 1'h0;
+                ready_we      = 1'h1;
+                s2v_init      = 1'h1;
+                core_ctrl_new = CTRL_DONE;
+                core_ctrl_we  = 1'h1;
               end
           end
 
@@ -603,6 +762,13 @@ module aes_siv_core(
               end
           end
 
+        CTRL_DONE:
+          begin
+            ready_new     = 1'h1;
+            ready_we      = 1'h1;
+            core_ctrl_new = CTRL_IDLE;
+            core_ctrl_we  = 1'h1;
+          end
 
         default:
           begin
