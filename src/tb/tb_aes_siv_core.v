@@ -663,7 +663,7 @@ module tb_aes_siv_core();
 
       // Set access mux to TB. Write data to address 0x0040.
       dut_ad_start  = 16'h00a0;
-      dut_ad_length = 20'h10;
+      dut_ad_length = 20'h0;
 
       dut_nonce_start  = 16'h55aa;
       dut_nonce_length = 20'h4e31;
@@ -681,12 +681,12 @@ module tb_aes_siv_core();
 
 
       $display("All calculations should be done. Showing results:");
-      $display("ad_num_blocks: 0x%05x, ad_final_size: 0x%02x",
-               dut.ad_num_blocks_reg, dut.ad_final_size_reg);
-      $display("nonce_num_blocks: 0x%05x, nonce_final_size: 0x%02x",
-               dut.nonce_num_blocks_reg, dut.nonce_final_size_reg);
-      $display("pc_num_blocks: 0x%05x, pc_final_size: 0x%02x",
-               dut.pc_num_blocks_reg, dut.pc_final_size_reg);
+      $display("ad_start_reg: 0x%04x, ad_length_reg: 0x%06x, ad_zlen: 0x%01x, ad_num_blocks: 0x%05x, ad_final_size: 0x%02x",
+               dut.ad_start_reg, dut.ad_length_reg, dut.ad_zlen, dut.ad_num_blocks, dut.ad_final_size);
+      $display("nonce_start_reg: 0x%04x, nonce_length_reg: 0x%06x, nonce_zlen: 0x%01x, nonce_num_blocks: 0x%05x, nonce_final_size: 0x%02x",
+               dut.nonce_start_reg, dut. nonce_length_reg, dut.nonce_zlen, dut.nonce_num_blocks, dut.nonce_final_size);
+      $display("pc_start_reg: 0x%04x, pc_length_reg: 0x%06x, pc_zlen: 0x%01x, pc_num_blocks: 0x%05x, pc_final_size: 0x%02x",
+               dut.ad_start_reg, dut.pc_length_reg, dut.pc_zlen, dut.pc_num_blocks, dut.pc_final_size);
     end
   endtask // test_block_bits
 
