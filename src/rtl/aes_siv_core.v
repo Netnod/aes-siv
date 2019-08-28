@@ -80,17 +80,16 @@ module aes_siv_core(
   localparam CTRL_IDLE          = 5'h00;
   localparam CTRL_S2V_INIT0     = 5'h01;
   localparam CTRL_S2V_INIT1     = 5'h02;
-  localparam CTRL_S2V_INIT2     = 5'h03;
-  localparam CTRL_S2V_FIRST0    = 5'h04;
-  localparam CTRL_S2V_FIRST1    = 5'h05;
-  localparam CTRL_S2V_NEXT0     = 5'h06;
-  localparam CTRL_S2V_NEXT1     = 5'h07;
-  localparam CTRL_S2V_FINAL0    = 5'h08;
-  localparam CTRL_S2V_FINAL1    = 5'h09;
-  localparam CTRL_S2V_FINALIZE0 = 5'h0a;
-  localparam CTRL_S2V_FINALIZE1 = 5'h0b;
-  localparam CTRL_S2V_FINALIZE2 = 5'h0c;
-  localparam CTRL_S2V_FINALIZE3 = 5'h0d;
+  localparam CTRL_S2V_AD0       = 5'h03;
+  localparam CTRL_S2V_AD1       = 5'h04;
+  localparam CTRL_S2V_AD2       = 5'h05;
+  localparam CTRL_S2V_NONCE0    = 5'h06;
+  localparam CTRL_S2V_NONCE1    = 5'h07;
+  localparam CTRL_S2V_NONCE2    = 5'h08;
+  localparam CTRL_S2V_PC0       = 5'h09;
+  localparam CTRL_S2V_PC1       = 5'h0a;
+  localparam CTRL_S2V_PC2       = 5'h0b;
+  localparam CTRL_S2V_FINALIZE  = 5'h0e;
   localparam CTRL_S2V_ZDONE     = 5'h0f;
   localparam CTRL_CTR_INIT0     = 5'h10;
   localparam CTRL_CTR_INIT1     = 5'h11;
@@ -110,6 +109,10 @@ module aes_siv_core(
   localparam D_DBL  = 2'h1;
   localparam D_XOR  = 2'h2;
 
+  localparam ADDR_AD    = 2'h0;
+  localparam ADDR_NONCE = 2'h1;
+  localparam ADDR_PC    = 2'h2;
+
   localparam AES_BLOCK_SIZE = 128;
 
 
@@ -123,18 +126,24 @@ module aes_siv_core(
   reg [127 : 0] block_reg;
   reg           block_we;
 
-  reg [15 : 0]  ad_addr_reg;
-  reg [15 : 0]  ad_addr_new;
-  reg           ad_addr_we;
-  reg           ad_addr_inc;
+  reg [15 : 0]  addr_reg;
+  reg [15 : 0]  addr_new;
+  reg           addr_we;
+  reg           addr_set;
+  reg [1 : 0]   addr_mux;
+  reg           addr_inc;
 
-  reg [15 :0]    ad_start_reg;
-  reg [19 :0]    ad_length_reg;
-  reg [15 :0]    nonce_start_reg;
-  reg [19 :0]    nonce_length_reg;
-  reg [15 :0]    pc_start_reg;
-  reg [19 :0]    pc_length_reg;
-  reg            start_len_we;
+  reg [15 : 0]  block_ctr_reg;
+  reg [15 : 0]  block_ctr_new;
+  reg           block_ctr_we;
+
+  reg [15 :0]   ad_start_reg;
+  reg [19 :0]   ad_length_reg;
+  reg [15 :0]   nonce_start_reg;
+  reg [19 :0]   nonce_length_reg;
+  reg [15 :0]   pc_start_reg;
+  reg [19 :0]   pc_length_reg;
+  reg           start_len_we;
 
   reg [127 : 0] d_reg;
   reg [127 : 0] d_new;
@@ -146,10 +155,6 @@ module aes_siv_core(
   reg [127 : 0] x_reg;
   reg [127 : 0] x_new;
   reg           x_we;
-
-  reg           s2v_state_reg;
-  reg           s2v_state_new;
-  reg           s2v_state_we;
 
   reg [127 : 0] result_reg;
   reg [127 : 0] result_new;
@@ -184,7 +189,6 @@ module aes_siv_core(
   wire           cmac_ready;
   wire           cmac_valid;
   reg [1 : 0]    cmac_inputs;
-
 
   reg            init_ctr;
   reg            update_ctr;
@@ -283,13 +287,14 @@ module aes_siv_core(
           d_reg            <= 128'h0;
           v_reg            <= 128'h0;
           x_reg            <= 128'h0;
+          addr_reg         <= 16'h0;
+          block_ctr_reg    <= 16'h0;
           ad_start_reg     <= 16'h0;;
           ad_length_reg    <= 20'h0;
           nonce_start_reg  <= 16'h0;;
           nonce_length_reg <= 20'h0;
           pc_start_reg     <= 16'h0;;
           pc_length_reg    <= 20'h0;
-          s2v_state_reg    <= 1'h0;
           core_ctrl_reg    <= CTRL_IDLE;
         end
       else
@@ -300,14 +305,17 @@ module aes_siv_core(
           if (block_we)
             block_reg <= block_rd;
 
+          if (addr_we)
+            addr_reg <= addr_new;
+
+          if (block_ctr_we)
+            block_ctr_reg <= block_ctr_new;
+
           if (d_we)
             d_reg <= d_new;
 
           if (v_we)
             v_reg <= cmac_result;
-
-          if (s2v_state_we)
-            s2v_state_reg <= s2v_state_new;
 
           if (x_we)
             x_reg <= x_new;
@@ -415,6 +423,7 @@ module aes_siv_core(
         end
     end // ctr_dp
 
+
   //----------------------------------------------------------------
   // length_decoder
   //
@@ -479,6 +488,43 @@ module aes_siv_core(
         end
     end
 
+  //----------------------------------------------------------------
+  // addr_block_ctr
+  //
+  // Logic for setting and updating the address generator.
+  // The logic also handles resetting and updating the
+  // block counter.
+  //----------------------------------------------------------------
+  always @*
+    begin : addr_block_ctr
+      addr_new      = 16'h0;
+      addr_we       = 1'h0;
+      block_ctr_new = 16'h0;
+      block_ctr_we  = 1'h0;
+
+      if (addr_set)
+        begin
+          addr_we = 1'h1;
+          case (addr_mux)
+            ADDR_AD: addr_new    = ad_start_reg;
+            ADDR_NONCE: addr_new = nonce_start_reg;
+            ADDR_PC: addr_new    = pc_start_reg;
+          endcase // case (addr_mux)
+
+          block_ctr_new = 16'h0;
+          block_ctr_we  = 1'h1;
+        end
+
+      if (addr_inc)
+        begin
+          addr_new = addr_reg + 1'h1;
+          addr_we  = 1'h1;
+
+          block_ctr_new = block_ctr_reg + 1'h1;
+          block_ctr_we  = 1'h1;
+        end
+    end
+
 
   //----------------------------------------------------------------
   // core_ctrl
@@ -491,9 +537,10 @@ module aes_siv_core(
       cmac_init       = 1'h0;
       cmac_next       = 1'h0;
       cmac_finalize   = 1'h0;
+      addr_set        = 1'h0;
+      addr_mux        = ADDR_AD;
+      addr_inc        = 1'h0;
       s2v_init        = 1'h0;
-      s2v_state_new   = 1'h0;
-      s2v_state_we    = 1'h0;
       init_ctr        = 1'h0;
       update_ctr      = 1'h0;
       block_we        = 1'h0;
@@ -554,156 +601,53 @@ module aes_siv_core(
               begin
                 update_d      = 1'h1;
                 ctrl_d        = D_CMAC;
-                ready_new     = 1'h1;
-                ready_we      = 1'h1;
-                core_ctrl_new = CTRL_IDLE;
-                core_ctrl_we  = 1'h1;
+
+                if (!ad_zlen)
+                  begin
+                    addr_set      = 1'h1;
+                    addr_mux      = ADDR_AD;
+                    core_ctrl_new = CTRL_S2V_AD0;
+                    core_ctrl_we  = 1'h1;
+                  end
+
+                else if (!nonce_zlen)
+                  begin
+                    addr_set      = 1'h1;
+                    addr_mux      = ADDR_NONCE;
+                    core_ctrl_new = CTRL_S2V_NONCE0;
+                    core_ctrl_we  = 1'h1;
+                  end
+
+                else
+                  begin
+                    addr_set      = 1'h1;
+                    addr_mux      = ADDR_PC;
+                    core_ctrl_new = CTRL_S2V_PC0;
+                    core_ctrl_we  = 1'h1;
+                  end
               end
           end
 
 
-        CTRL_S2V_INIT2:
+        CTRL_S2V_AD0:
           begin
-            cmac_inputs     = CMAC_ZEROES;
-            cmac_final_size = AES_BLOCK_SIZE;
-            if (cmac_ready)
-              begin
-                s2v_state_new = 1'h1;
-                s2v_state_we  = 1'h1;
-                update_d      = 1'h1;
-                ctrl_d        = D_CMAC;
-                ready_new     = 1'h1;
-                ready_we      = 1'h1;
-                core_ctrl_new = CTRL_IDLE;
-                core_ctrl_we  = 1'h1;
-              end
-          end
-
-
-        CTRL_S2V_FIRST0:
-          begin
-            if (cmac_ready)
-              begin
-                cmac_next     = 1'h1;
-                cmac_inputs   = CMAC_BLOCK;
-                core_ctrl_new = CTRL_S2V_FIRST1;
-                core_ctrl_we  = 1'h1;
-              end
-          end
-
-
-        CTRL_S2V_FIRST1:
-          begin
-            cmac_inputs = CMAC_BLOCK;
-            if (cmac_ready)
-              begin
-                ready_new     = 1'h1;
-                ready_we      = 1'h1;
-                core_ctrl_new = CTRL_IDLE;
-                core_ctrl_we  = 1'h1;
-              end
-          end
-
-
-        CTRL_S2V_NEXT0:
-          begin
-            cmac_next     = 1'h1;
-            cmac_inputs   = CMAC_BLOCK;
-            core_ctrl_new = CTRL_S2V_NEXT1;
+            ready_new     = 1'h1;
+            ready_we      = 1'h1;
+            core_ctrl_new = CTRL_IDLE;
             core_ctrl_we  = 1'h1;
           end
 
 
-        CTRL_S2V_NEXT1:
+        CTRL_S2V_NONCE0:
           begin
-            cmac_inputs = CMAC_BLOCK;
-            if (cmac_ready)
-              begin
-                ready_new     = 1'h1;
-                ready_we      = 1'h1;
-                core_ctrl_new = CTRL_IDLE;
-                core_ctrl_we  = 1'h1;
-              end
+            ready_new     = 1'h1;
+            ready_we      = 1'h1;
+            core_ctrl_new = CTRL_IDLE;
+            core_ctrl_we  = 1'h1;
           end
 
 
-        CTRL_S2V_FINAL0:
-          begin
-            update_d        = 1'h1;
-            ctrl_d          = D_DBL;
-            cmac_finalize   = 1'h1;
-            cmac_inputs     = CMAC_BLOCK;
-            cmac_final_size = ad_final_size;
-            core_ctrl_new   = CTRL_S2V_FINAL1;
-            core_ctrl_we    = 1'h1;
-          end
-
-
-        CTRL_S2V_FINAL1:
-          begin
-            cmac_inputs     = CMAC_BLOCK;
-            cmac_final_size = ad_final_size;
-            if (cmac_ready)
-              begin
-                update_d      = 1'h1;
-                ctrl_d        = D_XOR;
-                ready_new     = 1'h1;
-                ready_we      = 1'h1;
-                core_ctrl_new = CTRL_IDLE;
-                core_ctrl_we  = 1'h1;
-              end
-          end
-
-
-        CTRL_S2V_FINALIZE0:
-          begin
-            // Check if cmac and s2v has been initalized.
-            if (!s2v_state_reg)
-              begin
-                cmac_init       = 1'h1;
-                core_ctrl_new   = CTRL_S2V_FINALIZE1;
-                core_ctrl_we    = 1'h1;
-              end
-            else
-              begin
-                core_ctrl_new = CTRL_S2V_FINALIZE3;
-                core_ctrl_we  = 1'h1;
-              end
-          end
-
-
-        CTRL_S2V_FINALIZE1:
-          begin
-            // Check if cmac and s2v has been initalized.
-            if (cmac_ready)
-              begin
-                cmac_finalize   = 1'h1;
-                cmac_inputs     = CMAC_ONE;
-                cmac_final_size = AES_BLOCK_SIZE;
-                core_ctrl_new   = CTRL_S2V_FINALIZE2;
-                core_ctrl_we    = 1'h1;
-              end
-          end
-
-
-        // Handle case when no AAD has been processed.
-        CTRL_S2V_FINALIZE2:
-          begin
-            cmac_inputs     = CMAC_ONE;
-            cmac_final_size = AES_BLOCK_SIZE;
-            if (cmac_ready)
-              begin
-                update_v      = 1'h1;
-                ready_new     = 1'h1;
-                ready_we      = 1'h1;
-                core_ctrl_new = CTRL_IDLE;
-                core_ctrl_we  = 1'h1;
-              end
-          end
-
-
-        // Handle finalization when AD has been processed.
-        CTRL_S2V_FINALIZE3:
+        CTRL_S2V_PC0:
           begin
             ready_new     = 1'h1;
             ready_we      = 1'h1;

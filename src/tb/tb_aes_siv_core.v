@@ -268,8 +268,6 @@ module tb_aes_siv_core();
 
       if (show_s2v)
         begin
-          $display("s2v_state_reg: 0x%01x, s2v_state_new: 0x%01x, s2v_state_we: 0x%01x",
-                   dut.s2v_state_reg, dut.s2v_state_new, dut.s2v_state_we);
           $display("ad_zlen: 0x%01x, nonce_zlen: 0x%01x, pc_zlen: 0x%01x",
                    dut.ad_zlen, dut.nonce_zlen, dut.pc_zlen);
           $display("d_reg: 0x%016x, d_new: 0x%016x, d_we: 0x%01x",
@@ -284,6 +282,10 @@ module tb_aes_siv_core();
       $display("Control:");
       $display("ctrl_reg: 0x%02x, ctrl_new: 0x%02x, ctrl_we: 0x%01x",
                dut.core_ctrl_reg, dut.core_ctrl_new, dut.core_ctrl_we);
+      $display("addr_reg: 0x%04x, addr_new: 0x%04x, addr_we: 0x%01x, addr_set: 0x%01x, addr_inc: 0x%01x, addr_mux: 0x%01x",
+               dut.addr_reg, dut.addr_new, dut.addr_we, dut.addr_set, dut.addr_inc, dut.addr_mux);
+      $display("block_ctr_reg: 0x%04x, block_ctr_new: 0x%04x, block_ctr_we: 0x%01x",
+               dut.block_ctr_reg, dut.block_ctr_new, dut.block_ctr_we);
       $display("\n");
     end
   endtask // dump_dut_state
@@ -747,7 +749,62 @@ module tb_aes_siv_core();
         $display("TC: NO SUCCESS - v_reg not correctly set.");
       $display("");
     end
-  endtask // test_block_bits
+  endtask // test_all_zero_s2v
+
+
+  //----------------------------------------------------------------
+  // test_s2v
+  //
+  // Test case using test vectors from RFC 5297 to verify that
+  // the S2V functionality works.
+  //----------------------------------------------------------------
+  task test_s2v;
+    begin : test_s2v
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+      show_s2v  = 1;
+      show_cmac = 1;
+
+      $display("TC: Verify S2V functionality.");
+
+      dut_ad_start  = 16'h00a0;
+      dut_ad_length = 20'h7;
+
+      dut_nonce_start  = 16'h55aa;
+      dut_nonce_length = 20'h0;
+
+      dut_pc_start  = 16'hbeef;
+      dut_pc_length = 20'h0;
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+
+      $display("TC: S2V processing should be completed.");
+
+
+      if (dut.v_reg != 128'h6a388223b4c07907611eb5f86f725597)
+        begin
+          $display("TC: ERROR - v_reg incorrect. Expected 0x6a388223b4c07907611eb5f86f725597, got 0x%032x.", dut.v_reg);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (tc_correct)
+        $display("TC: SUCCESS - v_reg correctly set.");
+      else
+        $display("TC: NO SUCCESS - v_reg not correctly set.");
+      $display("");
+    end
+  endtask // test_s2v
 
 
   //----------------------------------------------------------------
@@ -764,7 +821,8 @@ module tb_aes_siv_core();
       reset_dut();
 //      access_test_mem();
 //      test_block_bits();
-      test_all_zero_s2v();
+//      test_all_zero_s2v();
+      test_s2v();
 
 //      tc1_reset_state();
 //      tc2_s2v_init();
@@ -772,7 +830,7 @@ module tb_aes_siv_core();
 
       display_test_results();
 
-      $display("*** AES_SIV_CORE simulation done. ***");
+      $display("*** AES_SIV_CORE simulation completed. ***");
       $finish;
     end // main
 
