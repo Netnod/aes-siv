@@ -80,16 +80,18 @@ module aes_siv_core(
   localparam CTRL_IDLE          = 5'h00;
   localparam CTRL_S2V_INIT0     = 5'h01;
   localparam CTRL_S2V_INIT1     = 5'h02;
-  localparam CTRL_S2V_FIRST0    = 5'h03;
-  localparam CTRL_S2V_FIRST1    = 5'h04;
-  localparam CTRL_S2V_NEXT0     = 5'h05;
-  localparam CTRL_S2V_NEXT1     = 5'h06;
-  localparam CTRL_S2V_FINAL0    = 5'h07;
-  localparam CTRL_S2V_FINAL1    = 5'h08;
-  localparam CTRL_S2V_FINALIZE0 = 5'h09;
-  localparam CTRL_S2V_FINALIZE1 = 5'h0a;
-  localparam CTRL_S2V_FINALIZE2 = 5'h0b;
-  localparam CTRL_S2V_FINALIZE3 = 5'h0c;
+  localparam CTRL_S2V_INIT2     = 5'h03;
+  localparam CTRL_S2V_FIRST0    = 5'h04;
+  localparam CTRL_S2V_FIRST1    = 5'h05;
+  localparam CTRL_S2V_NEXT0     = 5'h06;
+  localparam CTRL_S2V_NEXT1     = 5'h07;
+  localparam CTRL_S2V_FINAL0    = 5'h08;
+  localparam CTRL_S2V_FINAL1    = 5'h09;
+  localparam CTRL_S2V_FINALIZE0 = 5'h0a;
+  localparam CTRL_S2V_FINALIZE1 = 5'h0b;
+  localparam CTRL_S2V_FINALIZE2 = 5'h0c;
+  localparam CTRL_S2V_FINALIZE3 = 5'h0d;
+  localparam CTRL_S2V_ZDONE     = 5'h0f;
   localparam CTRL_CTR_INIT0     = 5'h10;
   localparam CTRL_CTR_INIT1     = 5'h11;
   localparam CTRL_CTR_NEXT0     = 5'h12;
@@ -513,25 +515,54 @@ module aes_siv_core(
                 ready_we      = 1'h1;
                 s2v_init      = 1'h1;
                 cmac_init     = 1'h1;
-                core_ctrl_new = CTRL_DONE;
+                core_ctrl_new = CTRL_S2V_INIT0;
                 core_ctrl_we  = 1'h1;
               end
           end
+
 
         CTRL_S2V_INIT0:
           begin
             if (cmac_ready)
               begin
-                cmac_inputs     = CMAC_ZEROES;
-                cmac_final_size = AES_BLOCK_SIZE;
-                cmac_finalize   = 1'h1;
-                core_ctrl_new   = CTRL_S2V_INIT1;
-                core_ctrl_we    = 1'h1;
+                if (ad_zlen & nonce_zlen & pc_zlen)
+                  begin
+                    cmac_inputs     = CMAC_ONE;
+                    cmac_final_size = AES_BLOCK_SIZE;
+                    cmac_finalize   = 1'h1;
+                    core_ctrl_new   = CTRL_S2V_ZDONE;
+                    core_ctrl_we    = 1'h1;
+                  end
+                else
+                  begin
+                    cmac_inputs     = CMAC_ZEROES;
+                    cmac_final_size = AES_BLOCK_SIZE;
+                    cmac_finalize   = 1'h1;
+                    core_ctrl_new   = CTRL_S2V_INIT1;
+                    core_ctrl_we    = 1'h1;
+                  end
               end
           end
 
 
         CTRL_S2V_INIT1:
+          begin
+            cmac_inputs     = CMAC_ZEROES;
+            cmac_final_size = AES_BLOCK_SIZE;
+
+            if (cmac_ready)
+              begin
+                update_d      = 1'h1;
+                ctrl_d        = D_CMAC;
+                ready_new     = 1'h1;
+                ready_we      = 1'h1;
+                core_ctrl_new = CTRL_IDLE;
+                core_ctrl_we  = 1'h1;
+              end
+          end
+
+
+        CTRL_S2V_INIT2:
           begin
             cmac_inputs     = CMAC_ZEROES;
             cmac_final_size = AES_BLOCK_SIZE;
@@ -678,6 +709,24 @@ module aes_siv_core(
             ready_we      = 1'h1;
             core_ctrl_new = CTRL_IDLE;
             core_ctrl_we  = 1'h1;
+          end
+
+
+        // Handle the case when all inputs to S2V
+        // have zero length.
+        CTRL_S2V_ZDONE:
+          begin
+            cmac_inputs     = CMAC_ONE;
+            cmac_final_size = AES_BLOCK_SIZE;
+
+            if (cmac_ready)
+              begin
+                update_v      = 1'h1;
+                ready_new     = 1'h1;
+                ready_we      = 1'h1;
+                core_ctrl_new = CTRL_IDLE;
+                core_ctrl_we  = 1'h1;
+              end
           end
 
 

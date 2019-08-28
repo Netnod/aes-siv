@@ -258,6 +258,7 @@ module tb_aes_siv_core();
       if (show_cmac)
         begin
           $display("CMAC:");
+          $display("cmac_inputs: 0x%01x", dut.cmac_inputs);
           $display("cmac_ready: 0x%01x, cmac_init: 0x%01x, cmac_next: 0x%01x, cmac_finalize = 0x%01x,  cmac_final_length = 0x%02x",
                    dut.cmac_ready, dut.cmac_init, dut.cmac_next, dut.cmac_finalize, dut.cmac_final_size);
           $display("cmac_keylen: 0x%01x, cmac_key: 0x%032x", dut.cmac_keylen, dut.cmac_key);
@@ -269,6 +270,8 @@ module tb_aes_siv_core();
         begin
           $display("s2v_state_reg: 0x%01x, s2v_state_new: 0x%01x, s2v_state_we: 0x%01x",
                    dut.s2v_state_reg, dut.s2v_state_new, dut.s2v_state_we);
+          $display("ad_zlen: 0x%01x, nonce_zlen: 0x%01x, pc_zlen: 0x%01x",
+                   dut.ad_zlen, dut.nonce_zlen, dut.pc_zlen);
           $display("d_reg: 0x%016x, d_new: 0x%016x, d_we: 0x%01x",
                    dut.d_reg, dut.d_new, dut.d_we);
           $display("v_reg: 0x%016x, v_we: 0x%01x",
@@ -580,15 +583,15 @@ module tb_aes_siv_core();
 
       if (dut.v_reg != 128'h949f99cbcc3eb5da6d3c45d0f59aa9c7)
         begin
-          $display("TC2: ERROR - v_reg incorrect. Expected 0x949f99cbcc3eb5da6d3c45d0f59aa9c7, got 0x%032x.", dut.v_reg);
+          $display("TC: ERROR - v_reg incorrect. Expected 0x949f99cbcc3eb5da6d3c45d0f59aa9c7, got 0x%032x.", dut.v_reg);
           tc_correct = 0;
           inc_error_ctr();
         end
 
       if (tc_correct)
-        $display("TCC: SUCCESS - v_reg correctly set.");
+        $display("TC: SUCCESS - v_reg correctly set.");
       else
-        $display("TCC: NO SUCCESS - v_reg not correctly set.");
+        $display("TC: NO SUCCESS - v_reg not correctly set.");
       $display("");
     end
   endtask // tc4_s2v_ad1
@@ -646,6 +649,7 @@ module tb_aes_siv_core();
     end
   endtask // access_test_mem
 
+
   //----------------------------------------------------------------
   // test_block_bits
   //
@@ -692,6 +696,61 @@ module tb_aes_siv_core();
 
 
   //----------------------------------------------------------------
+  // test_all_zero_s2v
+  //
+  // Test that the core handles the case when all inputs have
+  // zero length.
+  //----------------------------------------------------------------
+  task test_all_zero_s2v;
+    begin : test_all_zero_s2v
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+      show_s2v  = 1;
+      show_cmac = 1;
+
+      $display("TC: Verify the all zero input case.");
+
+      dut_ad_start  = 16'h00a0;
+      dut_ad_length = 20'h0;
+
+      dut_nonce_start  = 16'h55aa;
+      dut_nonce_length = 20'h0;
+
+      dut_pc_start  = 16'hbeef;
+      dut_pc_length = 20'h0;
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+
+      $display("TC: Init and all zero handling should be done.");
+
+
+      if (dut.v_reg != 128'h6a388223b4c07907611eb5f86f725597)
+        begin
+          $display("TC: ERROR - v_reg incorrect. Expected 0x6a388223b4c07907611eb5f86f725597, got 0x%032x.", dut.v_reg);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (tc_correct)
+        $display("TC: SUCCESS - v_reg correctly set.");
+      else
+        $display("TC: NO SUCCESS - v_reg not correctly set.");
+      $display("");
+    end
+  endtask // test_block_bits
+
+
+  //----------------------------------------------------------------
   // main
   //
   // The main test functionality.
@@ -704,8 +763,8 @@ module tb_aes_siv_core();
       init_sim();
       reset_dut();
 //      access_test_mem();
-
-      test_block_bits();
+//      test_block_bits();
+      test_all_zero_s2v();
 
 //      tc1_reset_state();
 //      tc2_s2v_init();
