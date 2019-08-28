@@ -687,21 +687,29 @@ module tb_aes_siv_core();
       show_cmac = 1;
 
       // Write test vectors into the test mem.
-      write_block(16'h0, 128'hdeadbeef_aa55aa55_01010101_fefefefe);
-      write_block(16'h1, 128'hdeaddead_01010101_fefefefe_55aa55aa);
-      read_block(16'h1);
-      dump_mem(16'h0, 16'h3);
+      // Writing test vectors from RFC 5297, Appendix A.1
+      // Deterministic Authenticated Encryption Example
+
+      // AD: 6 * 4 bytes: 24 bytes in length
+      write_block(16'h0000, 128'h10111213_14151617_18191a1b_1c1d1e1f);
+      write_block(16'h0001, 128'h20212223_24252627_00000000_00000000);
+      dut_ad_start  = 16'h0000;
+      dut_ad_length = 20'h18;
+
+      // Nonce: 0 bytes. Ignored
+      dut_nonce_start  = 16'h55aa;
+      dut_nonce_length = 20'h0;
+
+      // Plaintext: 10 bytes.
+      write_block(16'h0010, 128'h11223344_55667788_99aabbcc_ddee0000);
+      dut_pc_start  = 16'h0010;
+      dut_pc_length = 20'h0a;
+
+      dump_mem(16'h0, 16'h11);
 
       $display("TC: Verify S2V functionality.");
 
-      dut_ad_start  = 16'h00a0;
-      dut_ad_length = 20'h0;
 
-      dut_nonce_start  = 16'h55aa;
-      dut_nonce_length = 20'h7;
-
-      dut_pc_start  = 16'hbeef;
-      dut_pc_length = 20'h99;
 
       dut_start = 1'h1;
       #(CLK_PERIOD);
