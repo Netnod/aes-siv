@@ -71,7 +71,6 @@ module tb_aes_siv_core();
   reg [31 : 0]  tc_ctr;
   reg           tc_correct;
   reg           debug_dut;
-  reg           debug_mem;
   reg           show_aes;
   reg           show_cmac;
   reg           show_s2v;
@@ -91,31 +90,17 @@ module tb_aes_siv_core();
   reg [19 :0]    dut_pc_length;
   wire           dut_cs;
   wire           dut_we;
-  reg            dut_ack;
+  wire           dut_ack;
   wire [15 : 0]  dut_addr;
-  reg [127 : 0]  dut_block_rd;
+  wire [127 : 0] dut_block_rd;
   wire [127 : 0] dut_block_wr;
   wire [127 : 0] dut_tag_in;
   wire [127 : 0] dut_tag_out;
   wire           dut_tag_ok;
   wire           dut_ready;
 
-  wire           mem_ack;
-  reg            mem_cs;
-  reg            mem_we;
-  reg [15 : 0]   mem_addr;
-  reg [127 : 0]  mem_block_wr;
-  wire [127 : 0] mem_block_rd;
-
   reg            tb_debug;
   reg            tb_debug_mem;
-  wire           tb_ack;
-  reg            tb_cs;
-  reg            tb_we;
-  reg [15 : 0]   tb_addr;
-  reg [7 : 0]    tb_wait_cycles;
-  reg [127 : 0]  tb_block_wr;
-  reg            tb_mem_ctrl;
 
 
   //----------------------------------------------------------------
@@ -157,40 +142,13 @@ module tb_aes_siv_core();
   tb_core_mem mem(
                   .clk(tb_clk),
                   .reset_n(tb_reset_n),
-                  .cs(mem_cs),
-                  .we(mem_we),
-                  .ack(mem_ack),
-                  .addr(mem_addr),
-                  .block_wr(mem_block_wr),
-                  .block_rd(mem_block_rd)
+                  .cs(dut_cs),
+                  .we(dut_we),
+                  .ack(dut_ack),
+                  .addr(dut_addr),
+                  .block_wr(dut_block_wr),
+                  .block_rd(dut_block_rd)
                   );
-
-
-  //----------------------------------------------------------------
-  // mem_access_mux
-  // To allow mem access between dut and testbench.
-  //----------------------------------------------------------------
-  always @*
-    begin : mem_access_mux
-      if (tb_mem_ctrl)
-        begin
-          mem_cs       = tb_cs;
-          mem_we       = tb_we;
-          mem_addr     = tb_addr;
-          mem_block_wr = tb_block_wr;
-          dut_ack      = 1'h0;
-          dut_block_rd = 128'h0;
-        end
-      else
-        begin
-          mem_cs       = dut_cs;
-          mem_we       = dut_we;
-          mem_addr     = dut_addr;
-          mem_block_wr = dut_block_wr;
-          dut_ack      = mem_ack;
-          dut_block_rd = mem_block_rd;
-        end
-    end
 
 
   //----------------------------------------------------------------
@@ -225,9 +183,6 @@ module tb_aes_siv_core();
 
       if (debug_dut)
         dump_dut_state();
-
-      if (debug_mem)
-        dump_mem_state();
     end
 
 
@@ -292,31 +247,6 @@ module tb_aes_siv_core();
 
 
   //----------------------------------------------------------------
-  // dump_mem_state()
-  //
-  // Dump the state of the memory when needed.
-  //----------------------------------------------------------------
-  task dump_mem_state;
-    begin
-      $display("\n");
-      $display("cycle: 0x%016x", cycle_ctr);
-      $display("Acess mux ctrl: 0x%01x:", tb_mem_ctrl);
-      $display("Inputs and outputs:");
-      $display("cs: 0x%01x, we: 0x%01x, addr: 0x%04x, ack: 0x%01x",
-               mem.cs, mem.we, mem.addr, mem.ack);
-      $display("block_wr: 0x%032x", mem.block_wr);
-      $display("block_rd: 0x%032x", mem.block_rd);
-      $display("");
-      $display("Internal states:");
-      $display("ack_new: 0x%01x, mem_we: 0x%01x", mem.ack_new, mem.mem_we);
-      $display("wait_ctr_reg: 0x%02x, wait_ctr_new: 0x%02x",
-               mem.wait_ctr_reg, mem.wait_ctr_new);
-      $display("\n");
-    end
-  endtask // dump_mem_state
-
-
-  //----------------------------------------------------------------
   // reset_dut()
   //
   // Toggle reset to put the DUT into a well known state.
@@ -364,7 +294,6 @@ module tb_aes_siv_core();
       error_ctr  = 0;
       tc_ctr     = 0;
       debug_dut  = 0;
-      debug_mem  = 0;
 
       show_aes   = 0;
       show_cmac  = 0;
@@ -385,7 +314,6 @@ module tb_aes_siv_core();
       dut_pc_length    = 20'h0;
 
       tb_debug         = 1'h1;
-      tb_wait_cycles   = 8'h2;
     end
   endtask // init_sim
 
@@ -439,13 +367,57 @@ module tb_aes_siv_core();
   // Wait for the ack from memory to be asserted.
   //----------------------------------------------------------------
   task wait_ack;
-    begin : wack
+    begin : wait_ack
       #(2 * CLK_PERIOD);
 
-      while (mem_ack == 0)
+      while (!dut_ack)
         #(CLK_PERIOD);
     end
   endtask // wait_ack
+
+
+  //----------------------------------------------------------------
+  // write_block()
+  //
+  // Write the given block to the test mem.
+  //----------------------------------------------------------------
+  task write_block(input [15 : 0] addr,
+                  input [127 : 0] block);
+    begin
+      $display("*** Writing 0x%032x to 0x%04x.", block, addr);
+      mem.mem[addr] = block;
+    end
+  endtask // write_block
+
+
+  //----------------------------------------------------------------
+  // read_block()
+  //
+  // Read the block at the address from the test mem.
+  //----------------------------------------------------------------
+  task read_block(input [15 : 0] addr);
+    begin
+      $display("*** Read 0x%032x from 0x%04x.", mem.mem[addr], addr);
+    end
+  endtask // read_block
+
+
+  //----------------------------------------------------------------
+  // dump_mem()
+  //
+  // Dump the memory contents in the given address range. This
+  // task directly accesses the tet memory without using the API.
+  //----------------------------------------------------------------
+  task dump_mem(input [15 : 0] start_addr, input [15 : 0] end_addr);
+    begin : dump_mem
+      reg [15 : 0] i;
+
+      $display("Contents of memory in range 0x%04x to 0x%04x:", start_addr, end_addr);
+
+      for (i = start_addr ; i <= end_addr ; i = i + 1)
+          $display("0x%04x: 0x%032x", i, mem.mem[i]);
+    end
+  endtask // dump_mem
 
 
   //----------------------------------------------------------------
@@ -600,59 +572,6 @@ module tb_aes_siv_core();
 
 
   //----------------------------------------------------------------
-  // access_test_mem
-  //
-  // Check that we can read and write to the test memory.
-  //----------------------------------------------------------------
-  task access_test_mem;
-    begin : access_test_mem
-      inc_tc_ctr();
-      tc_correct = 1;
-
-      debug_mem = 1;
-
-      $display("TCX: Check that we can access the test memory from the TB..");
-
-      // Set access mux to TB. Write data to address 0x0040.
-      tb_mem_ctrl = 1'h1;
-      tb_addr     = 16'h0040;
-      tb_block_wr = 128'hdeadbeef_beefbeef_aaaaaaaa_55555555;
-      tb_cs       = 1'h1;
-      tb_we       = 1'h1;
-
-      wait_ack();
-
-      #(CLK_PERIOD);
-
-      tb_cs = 1'h0;
-      tb_we = 1'h0;
-      #(CLK_PERIOD);
-
-      $display("TCX: Write to memory should have happened.");
-      $display("Contents at address 0x003f: 0x%032x", mem.mem[16'h003f]);
-      $display("Contents at address 0x0040: 0x%032x", mem.mem[16'h0040]);
-      $display("Contents at address 0x0041: 0x%032x", mem.mem[16'h0041]);
-      $display("");
-
-
-      // Set access mux to TB. Read data from address 0x0040.
-      tb_mem_ctrl = 1'h1;
-      tb_addr     = 16'h0040;
-      tb_cs       = 1'h1;
-      tb_we       = 1'h0;
-      wait_ack();
-      #(CLK_PERIOD);
-      $display("TCX: Read from memory should have happened.");
-      $display("Contents of block_rd: 0x%032x", mem_block_rd);
-      tb_cs       = 1'h0;
-
-      #(2 * CLK_PERIOD);
-      debug_mem = 0;
-    end
-  endtask // access_test_mem
-
-
-  //----------------------------------------------------------------
   // test_block_bits
   //
   // Check that the core calculates the correct number of blocks
@@ -767,16 +686,22 @@ module tb_aes_siv_core();
       show_s2v  = 1;
       show_cmac = 1;
 
+      // Write test vectors into the test mem.
+      write_block(16'h0, 128'hdeadbeef_aa55aa55_01010101_fefefefe);
+      write_block(16'h1, 128'hdeaddead_01010101_fefefefe_55aa55aa);
+      read_block(16'h1);
+      dump_mem(16'h0, 16'h3);
+
       $display("TC: Verify S2V functionality.");
 
       dut_ad_start  = 16'h00a0;
-      dut_ad_length = 20'h7;
+      dut_ad_length = 20'h0;
 
       dut_nonce_start  = 16'h55aa;
-      dut_nonce_length = 20'h0;
+      dut_nonce_length = 20'h7;
 
       dut_pc_start  = 16'hbeef;
-      dut_pc_length = 20'h0;
+      dut_pc_length = 20'h99;
 
       dut_start = 1'h1;
       #(CLK_PERIOD);
@@ -819,7 +744,6 @@ module tb_aes_siv_core();
 
       init_sim();
       reset_dut();
-//      access_test_mem();
 //      test_block_bits();
 //      test_all_zero_s2v();
       test_s2v();
