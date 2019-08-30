@@ -198,6 +198,10 @@ module tb_aes_siv_core();
       $display("Inputs and outputs:");
       $display("ready: 0x%01x, start: 0x%01x, tag: 0x%016x",
                dut.ready, dut.start, dut.tag_out);
+      $display("cs: 0x%01x, we: 0x%01x, ack: 0x%01x, addr: 0x%04x",
+               dut.cs, dut.we, dut.ack, dut.addr);
+      $display("block_rd: 0x%032x, block_wr: 0x%032x",
+               dut.block_rd, dut.block_wr);
       $display("");
 
       if (show_aes)
@@ -214,7 +218,7 @@ module tb_aes_siv_core();
         begin
           $display("CMAC:");
           $display("cmac_inputs: 0x%01x", dut.cmac_inputs);
-          $display("cmac_ready: 0x%01x, cmac_init: 0x%01x, cmac_next: 0x%01x, cmac_finalize = 0x%01x,  cmac_final_length = 0x%02x",
+          $display("cmac_ready: 0x%01x, cmac_init: 0x%01x, cmac_next: 0x%01x, cmac_finalize: 0x%01x, cmac_final_length: 0x%02x",
                    dut.cmac_ready, dut.cmac_init, dut.cmac_next, dut.cmac_finalize, dut.cmac_final_size);
           $display("cmac_keylen: 0x%01x, cmac_key: 0x%032x", dut.cmac_keylen, dut.cmac_key);
           $display("cmac_block: 0x%016x, cmac_result: 0x%016x", dut.cmac_block, dut.cmac_result);
@@ -223,15 +227,21 @@ module tb_aes_siv_core();
 
       if (show_s2v)
         begin
-          $display("ad_zlen: 0x%01x, nonce_zlen: 0x%01x, pc_zlen: 0x%01x",
-                   dut.ad_zlen, dut.nonce_zlen, dut.pc_zlen);
+          $display("ad_start: 0x%08x, ad_length: 0x%08x, ad_zlen: 0x%01x, ad_num_blocks: 0x%08x, ad_final_size: 0x%08x",
+                   dut.ad_start, dut.ad_length, dut.ad_zlen, dut.ad_num_blocks, dut.ad_final_size);
+          $display("nonce_start: 0x%04x, nonce_length: 0x%06x, nonce_zlen: 0x%01x, nonce_num_blocks: 0x%04x, nonce_final_size: 0x%04x",
+                   dut.nonce_start, dut.nonce_length, dut.nonce_zlen, dut.nonce_num_blocks, dut.nonce_final_size);
+          $display("pc_start: 0x%08x, pc_length: 0x%08x, pc_zlen: 0x%01x, pc_num_blocks: 0x%08x, pc_final_size: 0x%08x",
+                   dut.pc_start, dut.pc_length, dut.pc_zlen, dut.pc_num_blocks, dut.pc_final_size);
           $display("d_reg: 0x%016x, d_new: 0x%016x, d_we: 0x%01x",
                    dut.d_reg, dut.d_new, dut.d_we);
           $display("v_reg: 0x%016x, v_we: 0x%01x",
                    dut.v_reg, dut.v_we);
+          $display("block_reg: 0x%016x, block_we: 0x%01x",
+                   dut.block_reg, dut.block_we);
           $display("x_reg: 0x%016x, x_new: 0x%016x, x_we: 0x%01x",
                    dut.x_reg, dut.x_new, dut.x_we);
-          $display("\n");
+          $display("");
         end
 
       $display("Control:");
@@ -707,9 +717,11 @@ module tb_aes_siv_core();
 
       dump_mem(16'h0, 16'h11);
 
+      dut_key = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0,
+                 128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
+                 256'h0};
+
       $display("TC: Verify S2V functionality.");
-
-
 
       dut_start = 1'h1;
       #(CLK_PERIOD);
