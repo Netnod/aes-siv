@@ -682,19 +682,21 @@ module tb_aes_siv_core();
 
 
   //----------------------------------------------------------------
-  // test_s2v
+  // test_s2v_A1
   //
-  // Test case using test vectors from RFC 5297 to verify that
-  // the S2V functionality works.
+  // Test case using test vectors from RFC 5297, A.1 to verify
+  // that the S2V functionality works.
   //----------------------------------------------------------------
-  task test_s2v;
-    begin : test_s2v
+  task test_s2v_A1;
+    begin : test_s2v_A1
       inc_tc_ctr();
       tc_correct = 1;
 
       debug_dut = 1;
       show_s2v  = 1;
       show_cmac = 1;
+
+      $display("test_s2v_A1: Verify S2V functionality.");
 
       // Write test vectors into the test mem.
       // Writing test vectors from RFC 5297, Appendix A.1
@@ -707,12 +709,12 @@ module tb_aes_siv_core();
       dut_ad_length = 20'h18;
 
       // Nonce: 0 bytes. Ignored
-      dut_nonce_start  = 16'h55aa;
+      dut_nonce_start  = 16'h0010;
       dut_nonce_length = 20'h0;
 
       // Plaintext: 10 bytes.
       write_block(16'h0010, 128'h11223344_55667788_99aabbcc_ddee0000);
-      dut_pc_start  = 16'h0010;
+      dut_pc_start  = 16'h0020;
       dut_pc_length = 20'h0a;
 
       dump_mem(16'h0, 16'h11);
@@ -721,7 +723,7 @@ module tb_aes_siv_core();
                  128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
                  256'h0};
 
-      $display("TC: Verify S2V functionality.");
+      $display("TC: S2V processing started.");
 
       dut_start = 1'h1;
       #(CLK_PERIOD);
@@ -749,7 +751,248 @@ module tb_aes_siv_core();
         $display("TC: NO SUCCESS - v_reg not correctly set.");
       $display("");
     end
-  endtask // test_s2v
+  endtask // test_s2v_A1
+
+
+  //----------------------------------------------------------------
+  // test_s2v_A1_mod1
+  //
+  // Test case using test vectors from RFC 5297, A.1 to verify
+  // that the S2V functionality works. This case id modified
+  // to have no AD, but instead a nonce field.
+  //----------------------------------------------------------------
+  task test_s2v_A1_mod1;
+    begin : test_s2v_A1_mod1
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+      show_s2v  = 1;
+      show_cmac = 1;
+
+      $display("test_s2v_A1_mod1: Verify S2V functionality.");
+
+      // Write test vectors into the test mem.
+      // Writing test vectors from RFC 5297, Appendix A.1
+      // Deterministic Authenticated Encryption Example
+
+      // AD: 0 bytes. Should be ignored.
+      dut_ad_start  = 16'h0000;
+      dut_ad_length = 20'h0;
+
+      // Nonce: 24 bytes.
+      write_block(16'h0010, 128'h10111213_14151617_18191a1b_1c1d1e1f);
+      write_block(16'h0011, 128'h20212223_24252627_00000000_00000000);
+      dut_nonce_start  = 16'h0010;
+      dut_nonce_length = 20'h18;
+
+      // Plaintext: 10 bytes.
+      write_block(16'h0010, 128'h11223344_55667788_99aabbcc_ddee0000);
+      dut_pc_start  = 16'h0010;
+      dut_pc_length = 20'h0a;
+
+      dump_mem(16'h0, 16'h11);
+
+      dut_key = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0,
+                 128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
+                 256'h0};
+
+      $display("TC: S2V processing started.");
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+
+      $display("TC: S2V processing should be completed.");
+
+
+      if (dut.v_reg != 128'h6a388223b4c07907611eb5f86f725597)
+        begin
+          $display("TC: ERROR - v_reg incorrect. Expected 0x6a388223b4c07907611eb5f86f725597, got 0x%032x.", dut.v_reg);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (tc_correct)
+        $display("TC: SUCCESS - v_reg correctly set.");
+      else
+        $display("TC: NO SUCCESS - v_reg not correctly set.");
+      $display("");
+    end
+  endtask // test_s2v_A1_mod1
+
+
+  //----------------------------------------------------------------
+  // test_s2v_A2_mod1
+  //
+  // Test case using test vectors from RFC 5297, A.2 but modified
+  // to only have one AD field. Expected results:
+  // Tag: 85825e22 e90cf2dd da2c548d c7c1b631
+  // C:   0dcdaca0 cebf9dc6 cb90583f 5bf1506e 02cd4883 2b00e4e5
+  //      98b2b22a 53e6199d 4df0c166 6a35a043 3b250dc1 34d776
+  //----------------------------------------------------------------
+  task test_s2v_A2_mod1;
+    begin : test_s2v_A2_mod1
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+      show_s2v  = 1;
+      show_cmac = 1;
+
+      $display("test_s2v_A2_mod1: Verify S2V functionality.");
+
+      // Write test vectors into the test mem.
+      // Writing test vectors from RFC 5297, Appendix A.1
+      // Deterministic Authenticated Encryption Example
+
+      // AD: 10 * 4 bytes: 40 bytes in length.
+      write_block(16'h0000, 128'h00112233_44556677_8899aabb_ccddeeff);
+      write_block(16'h0001, 128'hdeaddada_deaddada_ffeeddcc_bbaa9988);
+      write_block(16'h0002, 128'h77665544_33221100_00000000_00000000);
+      dut_ad_start  = 16'h0000;
+      dut_ad_length = 20'h28;
+
+
+      // Nonce: 16.
+      write_block(16'h0010, 128'h09f91102_9d74e35b_d84156c5_635688c0);
+      dut_nonce_start  = 16'h0010;
+      dut_nonce_length = 20'h10;
+
+
+      // Plaintext: 47 bytes.
+      write_block(16'h0020, 128'h74686973_20697320_736f6d65_20706c61);
+      write_block(16'h0021, 128'h696e7465_78742074_6f20656e_63727970);
+      write_block(16'h0022, 128'h74207573_696e6720_5349562d_41455300);
+      dut_pc_start  = 16'h0020;
+      dut_pc_length = 20'h2f;
+
+      dump_mem(16'h0, 16'h11);
+
+      dut_key = {128'h7f7e7d7c_7b7a7978_77767574_73727170,
+                 128'h40414243_44454647_48494a4b_4c4d4e4f,
+                 256'h0};
+
+
+
+      $display("TC: S2V processing started.");
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+
+      $display("TC: S2V processing should be completed.");
+
+
+      if (dut.v_reg != 128'h6a388223b4c07907611eb5f86f725597)
+        begin
+          $display("TC: ERROR - v_reg incorrect. Expected 0x6a388223b4c07907611eb5f86f725597, got 0x%032x.", dut.v_reg);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (tc_correct)
+        $display("TC: SUCCESS - v_reg correctly set.");
+      else
+        $display("TC: NO SUCCESS - v_reg not correctly set.");
+      $display("");
+    end
+  endtask // test_s2v_A2_mod1
+
+
+  //----------------------------------------------------------------
+  // test_s2v_A2_mod2
+  //
+  // Test case using test vectors from RFC 5297, A.2 but modified
+  // to only have a plaintext field with zero length.
+  // Expected results:
+  // Tag: 4cf1e6f9 180dca76 83caaa9c 7bb70ec6
+  //----------------------------------------------------------------
+  task test_s2v_A2_mod2;
+    begin : test_s2v_A2_mod2
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+      show_s2v  = 1;
+      show_cmac = 1;
+
+      $display("test_s2v_A2_mod2: Verify S2V functionality.");
+
+      // Write test vectors into the test mem.
+      // Writing test vectors from RFC 5297, Appendix A.1
+      // Deterministic Authenticated Encryption Example
+
+      // AD: 10 * 4 bytes: 40 bytes in length.
+      write_block(16'h0000, 128'h00112233_44556677_8899aabb_ccddeeff);
+      write_block(16'h0001, 128'hdeaddada_deaddada_ffeeddcc_bbaa9988);
+      write_block(16'h0002, 128'h77665544_33221100_00000000_00000000);
+      dut_ad_start  = 16'h0000;
+      dut_ad_length = 20'h28;
+
+
+      // Nonce: 16.
+      write_block(16'h0010, 128'h09f91102_9d74e35b_d84156c5_635688c0);
+      dut_nonce_start  = 16'h0010;
+      dut_nonce_length = 20'h10;
+
+
+      // Plaintext: 47 bytes.
+      write_block(16'h0020, 128'h74686973_20697320_736f6d65_20706c61);
+      write_block(16'h0021, 128'h696e7465_78742074_6f20656e_63727970);
+      write_block(16'h0022, 128'h74207573_696e6720_5349562d_41455300);
+      dut_pc_start  = 16'h0020;
+      dut_pc_length = 20'h2f;
+
+      dump_mem(16'h0, 16'h11);
+
+      dut_key = {128'h7f7e7d7c_7b7a7978_77767574_73727170,
+                 128'h40414243_44454647_48494a4b_4c4d4e4f,
+                 256'h0};
+
+
+
+      $display("TC: S2V processing started.");
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+
+      $display("TC: S2V processing should be completed.");
+
+
+      if (dut.v_reg != 128'h6a388223b4c07907611eb5f86f725597)
+        begin
+          $display("TC: ERROR - v_reg incorrect. Expected 0x6a388223b4c07907611eb5f86f725597, got 0x%032x.", dut.v_reg);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (tc_correct)
+        $display("TC: SUCCESS - v_reg correctly set.");
+      else
+        $display("TC: NO SUCCESS - v_reg not correctly set.");
+      $display("");
+    end
+  endtask // test_s2v_A2_mod2
 
 
   //----------------------------------------------------------------
@@ -766,7 +1009,9 @@ module tb_aes_siv_core();
       reset_dut();
 //      test_block_bits();
 //      test_all_zero_s2v();
-      test_s2v();
+      test_s2v_A1();
+      test_s2v_A1_mod1();
+//      test_s2v_A2_mod1();
 
 //      tc1_reset_state();
 //      tc2_s2v_init();

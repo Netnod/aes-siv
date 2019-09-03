@@ -41,7 +41,9 @@ core:
 * Plaintext. Used as third and final string S in S2V.
 
 The core will support that the length of each field is zero or more
-bytes.
+bytes. For the plaintext this implies creating a padded block with 0x80
+and 15 bytes with 0x00. This block is the XORed with D before
+calculating the final CMAC digest.
 
 The core expects to be connected to a memory and The core supports
 dynamic (i.e. multi cycle) access latency to the memory. The core read
