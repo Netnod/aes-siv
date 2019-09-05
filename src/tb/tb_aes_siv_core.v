@@ -207,7 +207,7 @@ module tb_aes_siv_core();
       if (show_aes)
         begin
           $display("AES:");
-          $display("aes_ready: 0x%01x, aes_init: 0x%01x, aes_next = 0x%01x",
+          $display("aes_ready: 0x%01x, aes_init: 0x%01x, aes_next: 0x%01x",
                    dut.aes_ready, dut.aes_init, dut.aes_next);
           $display("aes_keylen: 0x%01x, aes_key: 0x%032x", dut.aes_keylen, dut.aes_key);
           $display("aes_block: 0x%016x, aes_result: 0x%016x", dut.aes_block, dut.aes_result);
@@ -240,8 +240,10 @@ module tb_aes_siv_core();
           $display("padded_block: 0x%016x", dut.s2v_dp.padded_block);
           $display("update_block: 0x%01x, block_mux: 0x%01x, block_we: 0x%01x",
                    dut.update_block, dut.block_mux, dut.block_we);
-          $display("block_reg: 0x%016x, block_new: 0x%016x",
-                   dut.block_reg, dut.block_new);
+          $display("block_reg: 0x%016x, block_new: 0x%016x, block_we: 0x%01x",
+                   dut.block_reg, dut.block_new, dut.block_we);
+          $display("result_reg: 0x%016x, result_new: 0x%016x, result_we: 0x%01x",
+                   dut.result_reg, dut.result_new, dut.result_we);
           $display("x_reg: 0x%016x, x_new: 0x%016x, x_we: 0x%01x",
                    dut.x_reg, dut.x_new, dut.x_we);
           $display("");
@@ -697,6 +699,7 @@ module tb_aes_siv_core();
 
       debug_dut = 1;
       show_s2v  = 1;
+      show_aes  = 1;
       show_cmac = 1;
 
       $display("test_s2v_A1: Verify S2V functionality.");
@@ -723,8 +726,9 @@ module tb_aes_siv_core();
       dump_mem(16'h0, 16'h22);
 
       dut_key = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0,
+                 128'h0,
                  128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
-                 256'h0};
+                 128'h0};
       dut_mode = AEAD_AES_SIV_CMAC_256;
 
       $display("TC: S2V processing started.");
@@ -737,9 +741,12 @@ module tb_aes_siv_core();
       #(2 * CLK_PERIOD);
       debug_dut = 0;
       show_s2v  = 0;
+      show_aes  = 0;
       show_cmac = 0;
 
       $display("TC: S2V processing should be completed.");
+
+      dump_mem(16'h0, 16'h22);
 
 
       if (dut.v_reg != 128'h85632d07_c6e8f37f_950acd32_0a2ecc93)
@@ -749,10 +756,19 @@ module tb_aes_siv_core();
           inc_error_ctr();
         end
 
+
+      if (mem.mem[16'h0020] != 128'h40c02b96_90c4dc04_daef7f6a_fe5c0000)
+        begin
+          $display("TC: ERROR - ciphertext incorrect. Expected 0x40c02b96_90c4dc04_daef7f6a_fe5c0000, got 0x%032x.",
+                   mem.mem[16'h0020]);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
       if (tc_correct)
-        $display("TC: SUCCESS - v_reg correctly set.");
+        $display("TC: SUCCESS - Tag and ciphertext correct.");
       else
-        $display("TC: NO SUCCESS - v_reg not correctly set.");
+        $display("TC: NO SUCCESS - Tagh and ciphertext NOT correct.");
       $display("");
     end
   endtask // test_s2v_A1
@@ -1035,7 +1051,7 @@ module tb_aes_siv_core();
       init_sim();
       reset_dut();
 //      test_block_bits();
-//      test_all_zero_s2v();
+      test_all_zero_s2v();
       test_s2v_A1();
 //      test_s2v_A1_mod1();
 //      test_s2v_A2_mod1();

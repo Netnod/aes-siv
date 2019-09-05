@@ -93,10 +93,15 @@ module aes_siv_core(
   localparam CTRL_S2V_PC_FINAL2   = 5'h0d;
   localparam CTRL_S2V_FINALIZE    = 5'h0e;
   localparam CTRL_S2V_ZDONE       = 5'h0f;
-  localparam CTRL_CTR_INIT0       = 5'h10;
-  localparam CTRL_CTR_INIT1       = 5'h11;
-  localparam CTRL_CTR_NEXT0       = 5'h12;
-  localparam CTRL_CTR_NEXT1       = 5'h13;
+
+  localparam CTRL_CTR_INIT        = 5'h10;
+  localparam CTRL_CTR_NEXT        = 5'h11;
+  localparam CTRL_CTR_READ        = 5'h12;
+  localparam CTRL_CTR_RACK        = 5'h13;
+  localparam CTRL_CTR_XOR         = 5'h14;
+  localparam CTRL_CTR_WRITE       = 5'h15;
+  localparam CTRL_CTR_WACK        = 5'h16;
+
   localparam CTRL_DONE            = 5'h1f;
 
   localparam AEAD_AES_SIV_CMAC_256 = 1'h0;
@@ -112,8 +117,9 @@ module aes_siv_core(
   localparam D_DBL  = 2'h1;
   localparam D_XOR  = 2'h2;
 
-  localparam BLOCK_XOR     = 1'h0;
-  localparam BLOCK_XOR_PAD = 1'h1;
+  localparam BLOCK_DATA    = 2'h0;
+  localparam BLOCK_XOR     = 2'h0;
+  localparam BLOCK_XOR_PAD = 2'h2;
 
   localparam ADDR_AD    = 2'h0;
   localparam ADDR_NONCE = 2'h1;
@@ -132,6 +138,10 @@ module aes_siv_core(
   reg [127 : 0] block_reg;
   reg [127 : 0] block_new;
   reg           block_we;
+
+  reg [127 : 0] ctr_result_reg;
+  reg [127 : 0] ctr_result_new;
+  reg           ctr_result_we;
 
   reg [15 : 0]  addr_reg;
   reg [15 : 0]  addr_new;
@@ -222,15 +232,17 @@ module aes_siv_core(
   reg [7 : 0]    pc_final_size;
   reg            pc_zlen;
 
+  reg            final_wr_block;
+
   reg            update_d;
   reg [1 : 0]    ctrl_d;
 
   reg            update_v;
 
   reg            update_block;
-  reg            block_mux;
+  reg [1 : 0]    block_mux;
 
-  reg            tmp_block_wr;
+  reg            ctr_result;
 
 
   //----------------------------------------------------------------
@@ -239,7 +251,7 @@ module aes_siv_core(
   assign cs       = cs_reg;
   assign we       = we_reg;
   assign addr     = addr_reg;
-  assign block_wr = tmp_block_wr;
+  assign block_wr = result_reg;
   assign ready    = ready_reg;
   assign tag_out  = v_reg;
 
@@ -265,7 +277,7 @@ module aes_siv_core(
                .clk(clk),
                .reset_n(reset_n),
 
-               .encdec(aes_encdec),
+               .encdec(1'h1),
                .init(aes_init),
                .next(aes_next),
                .ready(aes_ready),
@@ -309,6 +321,7 @@ module aes_siv_core(
           ready_reg        <= 1'h1;
           block_reg        <= 128'h0;
           result_reg       <= 128'h0;
+          ctr_result_reg   <= 128'h0;
           d_reg            <= 128'h0;
           v_reg            <= 128'h0;
           x_reg            <= 128'h0;
@@ -439,17 +452,19 @@ module aes_siv_core(
         4'hf: padded_block = {block_rd[127 : 008], 8'h80};
       endcase
 
-      block_new = d_reg ^ padded_block;
-
       if (update_block)
         begin
           block_we = 1'h1;
-          if (block_mux == BLOCK_XOR_PAD)
-            block_new = d_reg ^ padded_block;
-          else
-            block_new = d_reg ^ block_rd;
+          case (block_mux)
+            BLOCK_DATA:    block_new = block_rd;
+            BLOCK_XOR:     block_new = d_reg ^ block_rd;
+            BLOCK_XOR_PAD: block_new = d_reg ^ padded_block;
+            default:
+              begin
+                block_new = 128'h0;
+              end
+          endcase // case (block_mux)
         end
-
 
       if (update_d)
         begin
@@ -475,10 +490,40 @@ module aes_siv_core(
   //----------------------------------------------------------------
   always @*
     begin : ctr_dp
-      reg [63 : 0] x_tmp;
+      reg [31 : 0] x_tmp;
+      reg [127 : 0] mask;
 
-      x_new = 128'h0;
-      x_we  = 1'h0;
+      x_new      = 128'h0;
+      x_we       = 1'h0;
+      aes_key    = key[255 : 0];
+      aes_keylen = mode;
+      aes_block  = x_reg;
+
+      // Padding of final block when PC < 16 bytes.
+      case (pc_length[4 : 0])
+        5'h00: mask = {{0{8'hff}},  {16{8'h0}}};
+        5'h01: mask = {{1{8'hff}},  {15{8'h0}}};
+        5'h02: mask = {{2{8'hff}},  {14{8'h0}}};
+        5'h03: mask = {{3{8'hff}},  {13{8'h0}}};
+        5'h04: mask = {{4{8'hff}},  {12{8'h0}}};
+        5'h05: mask = {{5{8'hff}},  {11{8'h0}}};
+        5'h06: mask = {{6{8'hff}},  {10{8'h0}}};
+        5'h07: mask = {{7{8'hff}},  {9{8'h0}}};
+        5'h08: mask = {{8{8'hff}},  {8{8'h0}}};
+        5'h09: mask = {{9{8'hff}},  {7{8'h0}}};
+        5'h0a: mask = {{10{8'hff}}, {6{8'h0}}};
+        5'h0b: mask = {{11{8'hff}}, {5{8'h0}}};
+        5'h0c: mask = {{12{8'hff}}, {4{8'h0}}};
+        5'h0d: mask = {{13{8'hff}}, {3{8'h0}}};
+        5'h0e: mask = {{14{8'hff}}, {2{8'h0}}};
+        5'h0f: mask = {{15{8'hff}}, {1{8'h0}}};
+        5'h10: mask = {{16{8'hff}}, {0{8'h0}}};
+      endcase
+
+      if (final_wr_block)
+        result_new = (block_reg ^ aes_result) & mask;
+      else
+        result_new = block_reg ^ aes_result;
 
       // Clear bit 63 and 31 when seeding the counter.
       // See RFC 5297, Section 2.5.
@@ -488,13 +533,11 @@ module aes_siv_core(
           x_we  = 1'h1;
         end
 
-      // 64 bit adder used.
+      // 32 bit adder used.
       if (update_ctr)
         begin
-          result_new = block_reg ^ aes_result;
-          result_we  = 1'h1;
-          x_tmp = x_reg[63 : 0] + 1'h1;
-          x_new = {x_reg[127 : 64], x_tmp};
+          x_tmp = x_reg[31 : 0] + 1'h1;
+          x_new = {x_reg[127 : 32], x_tmp};
           x_we  = 1'h1;
         end
     end // ctr_dp
@@ -610,6 +653,8 @@ module aes_siv_core(
     begin : core_ctrl
       ready_new       = 1'h0;
       ready_we        = 1'h0;
+      aes_init        = 1'h0;
+      aes_next        = 1'h0;
       cmac_final_size = 8'h0;
       cmac_init       = 1'h0;
       cmac_next       = 1'h0;
@@ -626,12 +671,13 @@ module aes_siv_core(
       update_d        = 1'h0;
       ctrl_d          = D_CMAC;
       update_v        = 1'h0;
+      ctr_result_we   = 1'h0;
       cs_new          = 1'h0;
       cs_we           = 1'h0;
       we_new          = 1'h0;
       we_we           = 1'h0;
-      tmp_block_wr    = 128'h0;
       update_block    = 1'h0;
+      final_wr_block  = 1'h0;
       block_mux       = BLOCK_XOR;
       core_ctrl_new   = CTRL_IDLE;
       core_ctrl_we    = 1'h0;
@@ -959,7 +1005,7 @@ module aes_siv_core(
             if (cmac_ready)
               begin
                 update_v      = 1'h1;
-                core_ctrl_new = CTRL_DONE;
+                core_ctrl_new = CTRL_CTR_INIT;
                 core_ctrl_we  = 1'h1;
               end
           end
@@ -983,43 +1029,96 @@ module aes_siv_core(
           end
 
 
-        CTRL_CTR_INIT0:
+        CTRL_CTR_INIT:
           begin
+            aes_init      = 1'h1;
+            addr_set      = 1'h1;
+            addr_mux      = ADDR_PC;
             init_ctr      = 1'h1;
-            core_ctrl_new = CTRL_CTR_INIT1;
+            core_ctrl_new = CTRL_CTR_NEXT;
             core_ctrl_we  = 1'h1;
           end
 
 
-        CTRL_CTR_INIT1:
+        CTRL_CTR_NEXT:
           begin
             if (aes_ready)
               begin
-                ready_new     = 1'h1;
-                ready_we      = 1'h1;
-                core_ctrl_new = CTRL_IDLE;
+                aes_next      = 1'h1;
+                core_ctrl_new = CTRL_CTR_READ;
                 core_ctrl_we  = 1'h1;
               end
           end
 
 
-        CTRL_CTR_NEXT0:
-          begin
-            core_ctrl_new = CTRL_CTR_NEXT1;
-            core_ctrl_we  = 1'h1;
-          end
-
-
-        CTRL_CTR_NEXT1:
+        CTRL_CTR_READ:
           begin
             if (aes_ready)
               begin
-                update_ctr    = 1'h1;
-                result_we     = 1'h1;
-                ready_new     = 1'h1;
-                ready_we      = 1'h1;
-                core_ctrl_new = CTRL_IDLE;
+                cs_new        = 1'h1;
+                cs_we         = 1'h1;
+                core_ctrl_new = CTRL_CTR_RACK;
                 core_ctrl_we  = 1'h1;
+              end
+          end
+
+
+        CTRL_CTR_RACK:
+          begin
+            if (ack)
+              begin
+                cs_new        = 1'h0;
+                cs_we         = 1'h1;
+                update_block  = 1'h1;
+                block_mux     = BLOCK_DATA;
+                core_ctrl_new = CTRL_CTR_XOR;
+                core_ctrl_we  = 1'h1;
+              end
+          end
+
+
+        CTRL_CTR_XOR:
+          begin
+            if (block_ctr_reg == pc_num_blocks - 1)
+              final_wr_block = 1'h1;
+
+            result_we      = 1'h1;
+            update_ctr     = 1'h1;
+            core_ctrl_new  = CTRL_CTR_WRITE;
+            core_ctrl_we   = 1'h1;
+          end
+
+
+        CTRL_CTR_WRITE:
+          begin
+            cs_new        = 1'h1;
+            cs_we         = 1'h1;
+            we_new        = 1'h1;
+            we_we         = 1'h1;
+            core_ctrl_new = CTRL_CTR_WACK;
+            core_ctrl_we  = 1'h1;
+          end
+
+        CTRL_CTR_WACK:
+          begin
+            if (ack)
+              begin
+                cs_new        = 1'h0;
+                cs_we         = 1'h1;
+                we_new        = 1'h0;
+                we_we         = 1'h1;
+
+                if (block_ctr_reg == pc_num_blocks - 1)
+                  begin
+                    core_ctrl_new = CTRL_DONE;
+                    core_ctrl_we  = 1'h1;
+                  end
+                else
+                  begin
+                    addr_inc      = 1'h1;
+                    core_ctrl_new = CTRL_CTR_NEXT;
+                    core_ctrl_we  = 1'h1;
+                  end
               end
           end
 
