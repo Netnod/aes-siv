@@ -237,8 +237,11 @@ module tb_aes_siv_core();
                    dut.d_reg, dut.d_new, dut.d_we);
           $display("v_reg: 0x%016x, v_we: 0x%01x",
                    dut.v_reg, dut.v_we);
-          $display("block_reg: 0x%016x, block_we: 0x%01x",
-                   dut.block_reg, dut.block_we);
+          $display("padded_block: 0x%016x", dut.s2v_dp.padded_block);
+          $display("update_block: 0x%01x, block_mux: 0x%01x, block_we: 0x%01x",
+                   dut.update_block, dut.block_mux, dut.block_we);
+          $display("block_reg: 0x%016x, block_new: 0x%016x",
+                   dut.block_reg, dut.block_new);
           $display("x_reg: 0x%016x, x_new: 0x%016x, x_we: 0x%01x",
                    dut.x_reg, dut.x_new, dut.x_we);
           $display("");
@@ -713,15 +716,16 @@ module tb_aes_siv_core();
       dut_nonce_length = 20'h0;
 
       // Plaintext: 10 bytes.
-      write_block(16'h0010, 128'h11223344_55667788_99aabbcc_ddee0000);
+      write_block(16'h0020, 128'h11223344_55667788_99aabbcc_ddee0000);
       dut_pc_start  = 16'h0020;
-      dut_pc_length = 20'h0a;
+      dut_pc_length = 20'h0e;
 
-      dump_mem(16'h0, 16'h11);
+      dump_mem(16'h0, 16'h22);
 
       dut_key = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0,
                  128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
                  256'h0};
+      dut_mode = AEAD_AES_SIV_CMAC_256;
 
       $display("TC: S2V processing started.");
 
@@ -738,9 +742,9 @@ module tb_aes_siv_core();
       $display("TC: S2V processing should be completed.");
 
 
-      if (dut.v_reg != 128'h6a388223b4c07907611eb5f86f725597)
+      if (dut.v_reg != 128'h85632d07_c6e8f37f_950acd32_0a2ecc93)
         begin
-          $display("TC: ERROR - v_reg incorrect. Expected 0x6a388223b4c07907611eb5f86f725597, got 0x%032x.", dut.v_reg);
+          $display("TC: ERROR - v_reg incorrect. Expected 0x85632d07_c6e8f37f_950acd32_0a2ecc93, got 0x%032x.", dut.v_reg);
           tc_correct = 0;
           inc_error_ctr();
         end
@@ -787,15 +791,16 @@ module tb_aes_siv_core();
       dut_nonce_length = 20'h18;
 
       // Plaintext: 10 bytes.
-      write_block(16'h0010, 128'h11223344_55667788_99aabbcc_ddee0000);
-      dut_pc_start  = 16'h0010;
+      write_block(16'h0020, 128'h11223344_55667788_99aabbcc_ddee0000);
+      dut_pc_start  = 16'h0020;
       dut_pc_length = 20'h0a;
 
-      dump_mem(16'h0, 16'h11);
+      dump_mem(16'h0, 16'h22);
 
       dut_key = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0,
                  128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
                  256'h0};
+      dut_mode = AEAD_AES_SIV_CMAC_256;
 
       $display("TC: S2V processing started.");
 
@@ -885,15 +890,14 @@ module tb_aes_siv_core();
       write_block(16'h0021, 128'h696e7465_78742074_6f20656e_63727970);
       write_block(16'h0022, 128'h74207573_696e6720_5349562d_41455300);
       dut_pc_start  = 16'h0020;
-      dut_pc_length = 20'h2f;
+      dut_pc_length = 20'h24;
 
       dump_mem(16'h0, 16'h11);
 
       dut_key = {128'h7f7e7d7c_7b7a7978_77767574_73727170,
                  128'h40414243_44454647_48494a4b_4c4d4e4f,
                  256'h0};
-
-
+      dut_mode = AEAD_AES_SIV_CMAC_256;
 
       $display("TC: S2V processing started.");
 
@@ -935,7 +939,7 @@ module tb_aes_siv_core();
   // Tag: 4cf1e6f9 180dca76 83caaa9c 7bb70ec6
   //
   // Expected partial results:
-  // CMAC(zero): c8b43b59 74960e7c e6a5dd85 231e591a
+  //     CMAC(zero): c8b43b59 74960e7c e6a5dd85 231e591a
   //       double(): 916876b2 e92c1cf9 cd4bbb0a 463cb2b3
   //       CMAC(ad): 3c9b689a b41102e4 80954714 1dd0d15a
   //            xor: adf31e28 5d3d1e1d 4ddefc1e 5bec63e9
@@ -979,11 +983,12 @@ module tb_aes_siv_core();
       dut_pc_start  = 16'h0020;
       dut_pc_length = 20'h2f;
 
-      dump_mem(16'h0, 16'h11);
+      dump_mem(16'h0, 16'h24);
 
       dut_key = {128'h7f7e7d7c_7b7a7978_77767574_73727170,
                  128'h40414243_44454647_48494a4b_4c4d4e4f,
                  256'h0};
+      dut_mode = AEAD_AES_SIV_CMAC_256;
 
 
       $display("TC: S2V processing started.");
@@ -1032,9 +1037,9 @@ module tb_aes_siv_core();
 //      test_block_bits();
 //      test_all_zero_s2v();
       test_s2v_A1();
-      test_s2v_A1_mod1();
-      test_s2v_A2_mod1();
-      test_s2v_A2_mod2();
+//      test_s2v_A1_mod1();
+//      test_s2v_A2_mod1();
+//      test_s2v_A2_mod2();
 
 //      tc1_reset_state();
 //      tc2_s2v_init();
