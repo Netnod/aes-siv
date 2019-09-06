@@ -748,7 +748,6 @@ module tb_aes_siv_core();
 
       dump_mem(16'h0, 16'h22);
 
-
       if (dut.v_reg != 128'h85632d07_c6e8f37f_950acd32_0a2ecc93)
         begin
           $display("TC: ERROR - v_reg incorrect. Expected 0x85632d07_c6e8f37f_950acd32_0a2ecc93, got 0x%032x.", dut.v_reg);
@@ -768,7 +767,7 @@ module tb_aes_siv_core();
       if (tc_correct)
         $display("TC: SUCCESS - Tag and ciphertext correct.");
       else
-        $display("TC: NO SUCCESS - Tagh and ciphertext NOT correct.");
+        $display("TC: NO SUCCESS - Tag and ciphertext NOT correct.");
       $display("");
     end
   endtask // test_s2v_A1
@@ -780,6 +779,7 @@ module tb_aes_siv_core();
   // Test case using test vectors from RFC 5297, A.1 to verify
   // that the S2V functionality works. This case id modified
   // to have no AD, but instead a nonce field.
+  // Will it be the same? It should be.
   //----------------------------------------------------------------
   task test_s2v_A1_mod1;
     begin : test_s2v_A1_mod1
@@ -809,13 +809,14 @@ module tb_aes_siv_core();
       // Plaintext: 10 bytes.
       write_block(16'h0020, 128'h11223344_55667788_99aabbcc_ddee0000);
       dut_pc_start  = 16'h0020;
-      dut_pc_length = 20'h0a;
+      dut_pc_length = 20'h0e;
 
       dump_mem(16'h0, 16'h22);
 
       dut_key = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0,
+                 128'h0,
                  128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
-                 256'h0};
+                 128'h0};
       dut_mode = AEAD_AES_SIV_CMAC_256;
 
       $display("TC: S2V processing started.");
@@ -832,18 +833,28 @@ module tb_aes_siv_core();
 
       $display("TC: S2V processing should be completed.");
 
+      dump_mem(16'h0, 16'h22);
 
-      if (dut.v_reg != 128'h6a388223b4c07907611eb5f86f725597)
+      if (dut.v_reg != 128'h85632d07_c6e8f37f_950acd32_0a2ecc93)
         begin
-          $display("TC: ERROR - v_reg incorrect. Expected 0x6a388223b4c07907611eb5f86f725597, got 0x%032x.", dut.v_reg);
+          $display("TC: ERROR - v_reg incorrect. Expected 0x85632d07_c6e8f37f_950acd32_0a2ecc93, got 0x%032x.", dut.v_reg);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+
+      if (mem.mem[16'h0020] != 128'h40c02b96_90c4dc04_daef7f6a_fe5c0000)
+        begin
+          $display("TC: ERROR - ciphertext incorrect. Expected 0x40c02b96_90c4dc04_daef7f6a_fe5c0000, got 0x%032x.",
+                   mem.mem[16'h0020]);
           tc_correct = 0;
           inc_error_ctr();
         end
 
       if (tc_correct)
-        $display("TC: SUCCESS - v_reg correctly set.");
+        $display("TC: SUCCESS - Tag and ciphertext correct.");
       else
-        $display("TC: NO SUCCESS - v_reg not correctly set.");
+        $display("TC: NO SUCCESS - Tag and ciphertext NOT correct.");
       $display("");
     end
   endtask // test_s2v_A1_mod1
@@ -1051,9 +1062,9 @@ module tb_aes_siv_core();
       init_sim();
       reset_dut();
 //      test_block_bits();
-      test_all_zero_s2v();
-      test_s2v_A1();
-//      test_s2v_A1_mod1();
+//      test_all_zero_s2v();
+//      test_s2v_A1();
+      test_s2v_A1_mod1();
 //      test_s2v_A2_mod1();
 //      test_s2v_A2_mod2();
 

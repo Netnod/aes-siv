@@ -836,8 +836,6 @@ module aes_siv_core(
               begin
                 update_d      = 1'h1;
                 ctrl_d        = D_XOR;
-                core_ctrl_new = CTRL_DONE;
-                core_ctrl_we  = 1'h1;
 
                 if (!nonce_zlen)
                   begin
@@ -932,12 +930,10 @@ module aes_siv_core(
           begin
             if (cmac_ready)
               begin
-                cmac_init = 1'h1;
                 update_d      = 1'h1;
                 ctrl_d        = D_XOR;
-                addr_set      = 1'h1;
-                addr_mux      = ADDR_PC;
-                core_ctrl_new = CTRL_DONE;
+                cmac_init     = 1'h1;
+                core_ctrl_new = CTRL_S2V_PC_INIT;
                 core_ctrl_we  = 1'h1;
               end
           end
