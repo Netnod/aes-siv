@@ -447,91 +447,91 @@ module aes_siv_core(
         4'h1:
           begin
             xorend0 = {block_rd[127 : 008], block_rd[007 : 000] ^ d_reg[127 : 120]};
-            xorend1 = block_rd[127 : 008] ^ d_reg[119 : 000];
+            xorend1 = {block_rd[127 : 008] ^ d_reg[119 : 000], 8'h0};
           end
 
         4'h2:
           begin
             xorend0 = {block_rd[127 : 016], block_rd[015 : 000] ^ d_reg[127 : 112]};
-            xorend1 = block_rd[127 : 016] ^ d_reg[111 : 000];
+            xorend1 = {block_rd[127 : 016] ^ d_reg[111 : 000], 16'h0};
           end
 
         4'h3:
           begin
             xorend0 = {block_rd[127 : 024], block_rd[023 : 000] ^ d_reg[127 : 104]};
-            xorend1 = block_rd[127 : 024] ^ d_reg[103 : 000];
+            xorend1 = {block_rd[127 : 024] ^ d_reg[103 : 000], 24'h0};
           end
 
         4'h4:
           begin
             xorend0 = {block_rd[127 : 032], block_rd[031 : 000] ^ d_reg[127 : 096]};
-            xorend1 = block_rd[127 : 032] ^ d_reg[095 : 000];
+            xorend1 = {block_rd[127 : 032] ^ d_reg[095 : 000], 32'h0};
           end
 
         4'h5:
           begin
             xorend0 = {block_rd[127 : 040], block_rd[039 : 000] ^ d_reg[127 : 088]};
-            xorend1 = block_rd[127 : 040] ^ d_reg[087 : 000];
+            xorend1 = {block_rd[127 : 040] ^ d_reg[087 : 000], 40'h0};
           end
 
         4'h6:
           begin
             xorend0 = {block_rd[127 : 048], block_rd[047 : 000] ^ d_reg[127 : 080]};
-            xorend1 = block_rd[127 : 048] ^ d_reg[079 : 000];
+            xorend1 = {block_rd[127 : 048] ^ d_reg[079 : 000], 48'h0};
           end
 
         4'h7:
           begin
             xorend0 = {block_rd[127 : 056], block_rd[055 : 000] ^ d_reg[127 : 072]};
-            xorend1 = block_rd[127 : 056] ^ d_reg[071 : 000];
+            xorend1 = {block_rd[127 : 056] ^ d_reg[071 : 000], 56'h0};
           end
 
         4'h8:
           begin
             xorend0 = {block_rd[127 : 064], block_rd[063 : 000] ^ d_reg[127 : 064]};
-            xorend1 = block_rd[127 : 064] ^ d_reg[063 : 000];
+            xorend1 = {block_rd[127 : 064] ^ d_reg[063 : 000], 64'h0};
           end
 
         4'h9:
           begin
             xorend0 = {block_rd[127 : 072], block_rd[071 : 000] ^ d_reg[127 : 056]};
-            xorend1 = block_rd[127 : 072] ^ d_reg[055 : 000];
+            xorend1 = {block_rd[127 : 072] ^ d_reg[055 : 000], 72'h0};
           end
 
         4'ha:
           begin
             xorend0 = {block_rd[127 : 080], block_rd[079 : 000] ^ d_reg[127 : 048]};
-            xorend1 = block_rd[127 : 080] ^ d_reg[047 : 000];
+            xorend1 = {block_rd[127 : 080] ^ d_reg[047 : 000], 80'h0};
           end
 
         4'hb:
           begin
             xorend0 = {block_rd[127 : 088], block_rd[087 : 000] ^ d_reg[127 : 040]};
-            xorend1 = block_rd[127 : 088] ^ d_reg[039 : 000];
+            xorend1 = {block_rd[127 : 088] ^ d_reg[039 : 000], 88'h0};
           end
 
         4'hc:
           begin
             xorend0 = {block_rd[127 : 096], block_rd[095 : 000] ^ d_reg[127 : 032]};
-            xorend1 = block_rd[127 : 096] ^ d_reg[031 : 000];
+            xorend1 = {block_rd[127 : 096] ^ d_reg[031 : 000], 96'h0};
           end
 
         4'hd:
           begin
             xorend0 = {block_rd[127 : 104], block_rd[103 : 000] ^ d_reg[127 : 024]};
-            xorend1 = block_rd[127 : 104] ^ d_reg[023 : 000];
+            xorend1 = {block_rd[127 : 104] ^ d_reg[023 : 000], 104'h0};
           end
 
         4'he:
           begin
             xorend0 = {block_rd[127 : 112], block_rd[111 : 000] ^ d_reg[127 : 016]};
-            xorend1 = block_rd[127 : 112] ^ d_reg[015 : 000];
+            xorend1 = {block_rd[127 : 112] ^ d_reg[015 : 000], 112'h0};
           end
 
         4'hf:
           begin
             xorend0 = {block_rd[127 : 120], block_rd[119 : 000] ^ d_reg[127 : 008]};
-            xorend1 = block_rd[127 : 120] ^ d_reg[007 : 000];
+            xorend1 = {block_rd[127 : 120] ^ d_reg[007 : 000], 120'h0};
           end
       endcase
 
