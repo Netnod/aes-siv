@@ -238,7 +238,6 @@ module aes_siv_core(
   reg [1 : 0]    ctrl_d;
 
   reg            update_v;
-
   reg            update_block;
   reg [1 : 0]    block_mux;
 
@@ -398,6 +397,8 @@ module aes_siv_core(
       reg [127 : 0] mask;
       reg [127 : 0] masked_block;
       reg [127 : 0] padded_block;
+      reg [127 : 0] xorend0;
+      reg [127 : 0] xorend1;
 
       block_new    = 128'h0;
       block_we     = 1'h0;
@@ -430,6 +431,109 @@ module aes_siv_core(
         begin
           v_we  = 1'h1;
         end
+
+      // the xorend() function
+      // Masked XOR of second to last block when len(PC) > 16 and
+      // len(PC) % 16 != 0. This means that the n LAST bytes in
+      // the second to last block should be XOR:ed with the
+      // n FIRST bytes of the d_reg.
+      case (pc_length[3 : 0])
+        4'h0:
+          begin
+            xorend0 = block_rd;
+            xorend1 = block_rd ^ d_reg;
+          end
+
+        4'h1:
+          begin
+            xorend0 = {block_rd[127 : 008], block_rd[007 : 000] ^ d_reg[127 : 120]};
+            xorend1 = block_rd[127 : 008] ^ d_reg[119 : 000];
+          end
+
+        4'h2:
+          begin
+            xorend0 = {block_rd[127 : 016], block_rd[015 : 000] ^ d_reg[127 : 112]};
+            xorend1 = block_rd[127 : 016] ^ d_reg[111 : 000];
+          end
+
+        4'h3:
+          begin
+            xorend0 = {block_rd[127 : 024], block_rd[023 : 000] ^ d_reg[127 : 104]};
+            xorend1 = block_rd[127 : 024] ^ d_reg[103 : 000];
+          end
+
+        4'h4:
+          begin
+            xorend0 = {block_rd[127 : 032], block_rd[031 : 000] ^ d_reg[127 : 096]};
+            xorend1 = block_rd[127 : 032] ^ d_reg[095 : 000];
+          end
+
+        4'h5:
+          begin
+            xorend0 = {block_rd[127 : 040], block_rd[039 : 000] ^ d_reg[127 : 088]};
+            xorend1 = block_rd[127 : 040] ^ d_reg[087 : 000];
+          end
+
+        4'h6:
+          begin
+            xorend0 = {block_rd[127 : 048], block_rd[047 : 000] ^ d_reg[127 : 080]};
+            xorend1 = block_rd[127 : 048] ^ d_reg[079 : 000];
+          end
+
+        4'h7:
+          begin
+            xorend0 = {block_rd[127 : 056], block_rd[055 : 000] ^ d_reg[127 : 072]};
+            xorend1 = block_rd[127 : 056] ^ d_reg[071 : 000];
+          end
+
+        4'h8:
+          begin
+            xorend0 = {block_rd[127 : 064], block_rd[063 : 000] ^ d_reg[127 : 064]};
+            xorend1 = block_rd[127 : 064] ^ d_reg[063 : 000];
+          end
+
+        4'h9:
+          begin
+            xorend0 = {block_rd[127 : 072], block_rd[071 : 000] ^ d_reg[127 : 056]};
+            xorend1 = block_rd[127 : 072] ^ d_reg[055 : 000];
+          end
+
+        4'ha:
+          begin
+            xorend0 = {block_rd[127 : 080], block_rd[079 : 000] ^ d_reg[127 : 048]};
+            xorend1 = block_rd[127 : 080] ^ d_reg[047 : 000];
+          end
+
+        4'hb:
+          begin
+            xorend0 = {block_rd[127 : 088], block_rd[087 : 000] ^ d_reg[127 : 040]};
+            xorend1 = block_rd[127 : 088] ^ d_reg[039 : 000];
+          end
+
+        4'hc:
+          begin
+            xorend0 = {block_rd[127 : 096], block_rd[095 : 000] ^ d_reg[127 : 032]};
+            xorend1 = block_rd[127 : 096] ^ d_reg[031 : 000];
+          end
+
+        4'hd:
+          begin
+            xorend0 = {block_rd[127 : 104], block_rd[103 : 000] ^ d_reg[127 : 024]};
+            xorend1 = block_rd[127 : 104] ^ d_reg[023 : 000];
+          end
+
+        4'he:
+          begin
+            xorend0 = {block_rd[127 : 112], block_rd[111 : 000] ^ d_reg[127 : 016]};
+            xorend1 = block_rd[127 : 112] ^ d_reg[015 : 000];
+          end
+
+        4'hf:
+          begin
+            xorend0 = {block_rd[127 : 120], block_rd[119 : 000] ^ d_reg[127 : 008]};
+            xorend1 = block_rd[127 : 120] ^ d_reg[007 : 000];
+          end
+      endcase
 
 
       // Padding of final block when PC < 16 bytes.
@@ -839,6 +943,7 @@ module aes_siv_core(
 
                 if (!nonce_zlen)
                   begin
+                    cmac_init     = 1'h1;
                     addr_set      = 1'h1;
                     addr_mux      = ADDR_NONCE;
                     cs_new        = 1'h1;
@@ -964,7 +1069,7 @@ module aes_siv_core(
 
                 else
                   begin
-                    // Handle single block PC < 16 bytes.
+                    // Handle PC < 16 bytes.
                     core_ctrl_new = CTRL_DONE;
                     core_ctrl_we  = 1'h1;
                   end

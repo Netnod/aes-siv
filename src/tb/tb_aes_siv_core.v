@@ -1064,8 +1064,8 @@ module tb_aes_siv_core();
 //      test_block_bits();
 //      test_all_zero_s2v();
 //      test_s2v_A1();
-      test_s2v_A1_mod1();
-//      test_s2v_A2_mod1();
+//      test_s2v_A1_mod1();
+      test_s2v_A2_mod1();
 //      test_s2v_A2_mod2();
 
 //      tc1_reset_state();
