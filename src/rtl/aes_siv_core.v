@@ -117,9 +117,11 @@ module aes_siv_core(
   localparam D_DBL  = 2'h1;
   localparam D_XOR  = 2'h2;
 
-  localparam BLOCK_DATA    = 2'h0;
-  localparam BLOCK_XOR     = 2'h0;
-  localparam BLOCK_XOR_PAD = 2'h2;
+  localparam BLOCK_DATA    = 3'h0;
+  localparam BLOCK_XOR     = 3'h1;
+  localparam BLOCK_XOR_PAD = 3'h2;
+  localparam BLOCK_XOREND0 = 3'h3;
+  localparam BLOCK_XOREND1 = 3'h4;
 
   localparam ADDR_AD    = 2'h0;
   localparam ADDR_NONCE = 2'h1;
@@ -239,7 +241,7 @@ module aes_siv_core(
 
   reg            update_v;
   reg            update_block;
-  reg [1 : 0]    block_mux;
+  reg [2 : 0]    block_mux;
 
   reg            ctr_result;
 
@@ -563,6 +565,8 @@ module aes_siv_core(
             BLOCK_DATA:    block_new = block_rd;
             BLOCK_XOR:     block_new = d_reg ^ block_rd;
             BLOCK_XOR_PAD: block_new = d_reg ^ padded_block;
+            BLOCK_XOREND0: block_new = xorend0;
+            BLOCK_XOREND1: block_new = xorend1;
             default:
               begin
                 block_new = 128'h0;
