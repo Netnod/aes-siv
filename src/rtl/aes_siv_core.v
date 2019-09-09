@@ -81,37 +81,40 @@ module aes_siv_core(
   localparam CTRL_S2V_INIT        = 5'h01;
   localparam CTRL_S2V_SELECT      = 5'h02;
   localparam CTRL_S2V_AD_INIT     = 5'h03;
-  localparam CTRL_S2V_AD_NEXT     = 5'h05;
-  localparam CTRL_S2V_AD_FINAL    = 5'h04;
+  localparam CTRL_S2V_AD_NEXT     = 5'h04;
+  localparam CTRL_S2V_AD_FINAL    = 5'h05;
   localparam CTRL_S2V_NONCE_INIT  = 5'h06;
   localparam CTRL_S2V_NONCE_NEXT  = 5'h07;
   localparam CTRL_S2V_NONCE_FINAL = 5'h08;
   localparam CTRL_S2V_PC_INIT     = 5'h09;
-  localparam CTRL_S2V_PC_NEXT     = 5'h0a;
-  localparam CTRL_S2V_PC_FINAL0   = 5'h0b;
-  localparam CTRL_S2V_PC_FINAL1   = 5'h0c;
-  localparam CTRL_S2V_PC_FINAL2   = 5'h0d;
-  localparam CTRL_S2V_FINALIZE    = 5'h0e;
-  localparam CTRL_S2V_ZDONE       = 5'h0f;
+  localparam CTRL_S2V_PC_NEXT0    = 5'h0a;
+  localparam CTRL_S2V_PC_NEXT1    = 5'h0b;
+  localparam CTRL_S2V_PC_FINAL0   = 5'h0c;
+  localparam CTRL_S2V_PC_FINAL1   = 5'h0d;
+  localparam CTRL_S2V_PC_FINAL2   = 5'h0e;
+  localparam CTRL_S2V_FINALIZE    = 5'h0f;
+  localparam CTRL_S2V_ZDONE       = 5'h10;
 
-  localparam CTRL_CTR_INIT        = 5'h10;
-  localparam CTRL_CTR_NEXT        = 5'h11;
-  localparam CTRL_CTR_READ        = 5'h12;
-  localparam CTRL_CTR_RACK        = 5'h13;
-  localparam CTRL_CTR_XOR         = 5'h14;
-  localparam CTRL_CTR_WRITE       = 5'h15;
-  localparam CTRL_CTR_WACK        = 5'h16;
+  localparam CTRL_CTR_INIT        = 5'h12;
+  localparam CTRL_CTR_NEXT        = 5'h13;
+  localparam CTRL_CTR_READ        = 5'h14;
+  localparam CTRL_CTR_RACK        = 5'h15;
+  localparam CTRL_CTR_XOR         = 5'h16;
+  localparam CTRL_CTR_WRITE       = 5'h17;
+  localparam CTRL_CTR_WACK        = 5'h18;
 
   localparam CTRL_DONE            = 5'h1f;
 
   localparam AEAD_AES_SIV_CMAC_256 = 1'h0;
   localparam AEAD_AES_SIV_CMAC_512 = 1'h1;
 
-  localparam CMAC_ZEROES = 3'h0;
-  localparam CMAC_ONE    = 3'h1;
-  localparam CMAC_BLOCK  = 3'h2;
-  localparam CMAC_PAD    = 3'h3;
-  localparam CMAC_FINAL  = 3'h4;
+  localparam CMAC_ZEROES  = 3'h0;
+  localparam CMAC_ONE     = 3'h1;
+  localparam CMAC_BLOCK   = 3'h2;
+  localparam CMAC_XOREND0 = 3'h3;
+  localparam CMAC_XOREND1 = 3'h4;
+  localparam CMAC_PAD     = 3'h5;
+  localparam CMAC_FINAL   = 3'h6;
 
   localparam D_CMAC = 2'h0;
   localparam D_DBL  = 2'h1;
@@ -420,15 +423,6 @@ module aes_siv_core(
         end // if (s2v_init)
 
 
-      case (cmac_inputs)
-        CMAC_ZEROES: cmac_block = 128'h0;
-        CMAC_ONE:    cmac_block = 128'h1;
-        CMAC_BLOCK:  cmac_block = block_rd;
-        CMAC_PAD  :  cmac_block = block_reg;
-        CMAC_FINAL:  cmac_block = d_reg;
-      endcase // case (cmac_inputs)
-
-
       if (update_v)
         begin
           v_we  = 1'h1;
@@ -448,44 +442,44 @@ module aes_siv_core(
 
         4'h1:
           begin
-            xorend0 = {block_rd[127 : 008], block_rd[007 : 000] ^ d_reg[127 : 120]};
-            xorend1 = {block_rd[127 : 008] ^ d_reg[119 : 000], 8'h0};
+            xorend0 = {block_rd[127 : 120], block_rd[119 : 000] ^ d_reg[127 : 008]};
+            xorend1 = {block_rd[127 : 120] ^ d_reg[007 : 000], 120'h0};
           end
 
         4'h2:
           begin
-            xorend0 = {block_rd[127 : 016], block_rd[015 : 000] ^ d_reg[127 : 112]};
-            xorend1 = {block_rd[127 : 016] ^ d_reg[111 : 000], 16'h0};
+            xorend0 = {block_rd[127 : 112], block_rd[111 : 000] ^ d_reg[127 : 016]};
+            xorend1 = {block_rd[127 : 112] ^ d_reg[015 : 000], 112'h0};
           end
 
         4'h3:
           begin
-            xorend0 = {block_rd[127 : 024], block_rd[023 : 000] ^ d_reg[127 : 104]};
-            xorend1 = {block_rd[127 : 024] ^ d_reg[103 : 000], 24'h0};
+            xorend0 = {block_rd[127 : 104], block_rd[103 : 000] ^ d_reg[127 : 024]};
+            xorend1 = {block_rd[127 : 104] ^ d_reg[023 : 000], 104'h0};
           end
 
         4'h4:
           begin
-            xorend0 = {block_rd[127 : 032], block_rd[031 : 000] ^ d_reg[127 : 096]};
-            xorend1 = {block_rd[127 : 032] ^ d_reg[095 : 000], 32'h0};
+            xorend0 = {block_rd[127 : 096], block_rd[095 : 000] ^ d_reg[127 : 032]};
+            xorend1 = {block_rd[127 : 096] ^ d_reg[031 : 000], 96'h0};
           end
 
         4'h5:
           begin
-            xorend0 = {block_rd[127 : 040], block_rd[039 : 000] ^ d_reg[127 : 088]};
-            xorend1 = {block_rd[127 : 040] ^ d_reg[087 : 000], 40'h0};
+            xorend0 = {block_rd[127 : 088], block_rd[087 : 000] ^ d_reg[127 : 040]};
+            xorend1 = {block_rd[127 : 088] ^ d_reg[039 : 000], 88'h0};
           end
 
         4'h6:
           begin
-            xorend0 = {block_rd[127 : 048], block_rd[047 : 000] ^ d_reg[127 : 080]};
-            xorend1 = {block_rd[127 : 048] ^ d_reg[079 : 000], 48'h0};
+            xorend0 = {block_rd[127 : 080], block_rd[079 : 000] ^ d_reg[127 : 048]};
+            xorend1 = {block_rd[127 : 080] ^ d_reg[047 : 000], 80'h0};
           end
 
         4'h7:
           begin
-            xorend0 = {block_rd[127 : 056], block_rd[055 : 000] ^ d_reg[127 : 072]};
-            xorend1 = {block_rd[127 : 056] ^ d_reg[071 : 000], 56'h0};
+            xorend0 = {block_rd[127 : 072], block_rd[071 : 000] ^ d_reg[127 : 056]};
+            xorend1 = {block_rd[127 : 072] ^ d_reg[055 : 000], 72'h0};
           end
 
         4'h8:
@@ -496,44 +490,44 @@ module aes_siv_core(
 
         4'h9:
           begin
-            xorend0 = {block_rd[127 : 072], block_rd[071 : 000] ^ d_reg[127 : 056]};
-            xorend1 = {block_rd[127 : 072] ^ d_reg[055 : 000], 72'h0};
+            xorend0 = {block_rd[127 : 056], block_rd[055 : 000] ^ d_reg[127 : 072]};
+            xorend1 = {block_rd[127 : 056] ^ d_reg[071 : 000], 56'h0};
           end
 
         4'ha:
           begin
-            xorend0 = {block_rd[127 : 080], block_rd[079 : 000] ^ d_reg[127 : 048]};
-            xorend1 = {block_rd[127 : 080] ^ d_reg[047 : 000], 80'h0};
+            xorend0 = {block_rd[127 : 048], block_rd[047 : 000] ^ d_reg[127 : 080]};
+            xorend1 = {block_rd[127 : 048] ^ d_reg[079 : 000], 48'h0};
           end
 
         4'hb:
           begin
-            xorend0 = {block_rd[127 : 088], block_rd[087 : 000] ^ d_reg[127 : 040]};
-            xorend1 = {block_rd[127 : 088] ^ d_reg[039 : 000], 88'h0};
+            xorend0 = {block_rd[127 : 040], block_rd[039 : 000] ^ d_reg[127 : 088]};
+            xorend1 = {block_rd[127 : 040] ^ d_reg[087 : 000], 40'h0};
           end
 
         4'hc:
           begin
-            xorend0 = {block_rd[127 : 096], block_rd[095 : 000] ^ d_reg[127 : 032]};
-            xorend1 = {block_rd[127 : 096] ^ d_reg[031 : 000], 96'h0};
+            xorend0 = {block_rd[127 : 032], block_rd[031 : 000] ^ d_reg[127 : 096]};
+            xorend1 = {block_rd[127 : 032] ^ d_reg[095 : 000], 32'h0};
           end
 
         4'hd:
           begin
-            xorend0 = {block_rd[127 : 104], block_rd[103 : 000] ^ d_reg[127 : 024]};
-            xorend1 = {block_rd[127 : 104] ^ d_reg[023 : 000], 104'h0};
+            xorend0 = {block_rd[127 : 024], block_rd[023 : 000] ^ d_reg[127 : 104]};
+            xorend1 = {block_rd[127 : 024] ^ d_reg[103 : 000], 24'h0};
           end
 
         4'he:
           begin
-            xorend0 = {block_rd[127 : 112], block_rd[111 : 000] ^ d_reg[127 : 016]};
-            xorend1 = {block_rd[127 : 112] ^ d_reg[015 : 000], 112'h0};
+            xorend0 = {block_rd[127 : 016], block_rd[015 : 000] ^ d_reg[127 : 112]};
+            xorend1 = {block_rd[127 : 016] ^ d_reg[111 : 000], 16'h0};
           end
 
         4'hf:
           begin
-            xorend0 = {block_rd[127 : 120], block_rd[119 : 000] ^ d_reg[127 : 008]};
-            xorend1 = {block_rd[127 : 120] ^ d_reg[007 : 000], 120'h0};
+            xorend0 = {block_rd[127 : 008], block_rd[007 : 000] ^ d_reg[127 : 120]};
+            xorend1 = {block_rd[127 : 008] ^ d_reg[119 : 000], 8'h0};
           end
       endcase
 
@@ -573,6 +567,18 @@ module aes_siv_core(
               end
           endcase // case (block_mux)
         end
+
+
+      case (cmac_inputs)
+        CMAC_ZEROES:  cmac_block = 128'h0;
+        CMAC_ONE:     cmac_block = 128'h1;
+        CMAC_BLOCK:   cmac_block = block_rd;
+        CMAC_XOREND0: cmac_block = xorend0;
+        CMAC_XOREND1: cmac_block = xorend1;
+        CMAC_PAD:     cmac_block = block_reg;
+        CMAC_FINAL:   cmac_block = d_reg;
+      endcase // case (cmac_inputs)
+
 
       if (update_d)
         begin
@@ -1073,21 +1079,63 @@ module aes_siv_core(
 
                 else
                   begin
-                    // Handle PC < 16 bytes.
-                    core_ctrl_new = CTRL_DONE;
+                    // Handle PC >= 16 bytes.
+                    cs_new        = 1'h1;
+                    cs_we         = 1'h1;
+                    addr_set      = 1'h1;
+                    addr_mux      = ADDR_PC;
+                    core_ctrl_new = CTRL_S2V_PC_NEXT0;
                     core_ctrl_we  = 1'h1;
                   end
               end
           end
 
 
-        CTRL_S2V_PC_FINAL0:
+        // Wait for cmac to be ready.
+        // Check that we got the next block.
+        CTRL_S2V_PC_NEXT0:
           begin
             if (ack)
               begin
-                update_block = 1'h1;
-                block_mux     = BLOCK_XOR_PAD;
-                core_ctrl_new = CTRL_S2V_PC_FINAL1;
+                cs_new = 1'h0;
+                cs_we  = 1'h1;
+
+                if (block_ctr_reg == pc_num_blocks - 1)
+                  begin
+                    cmac_finalize   = 1'h1;
+                    cmac_inputs     = CMAC_XOREND1;
+                    cmac_final_size = pc_final_size;
+                    core_ctrl_new   = CTRL_S2V_PC_FINAL2;
+                    core_ctrl_we    = 1'h1;
+                  end
+
+                else if (block_ctr_reg == pc_num_blocks - 2)
+                  begin
+                    cmac_next       = 1'h1;
+                    cmac_inputs     = CMAC_XOREND0;
+                    core_ctrl_new   = CTRL_S2V_PC_NEXT1;
+                    core_ctrl_we    = 1'h1;
+                  end
+
+                else
+                  begin
+                    cmac_next       = 1'h1;
+                    cmac_inputs     = CMAC_BLOCK;
+                    core_ctrl_new   = CTRL_S2V_PC_NEXT1;
+                    core_ctrl_we    = 1'h1;
+                  end
+              end
+          end
+
+
+        CTRL_S2V_PC_NEXT1:
+          begin
+            if (cmac_ready)
+              begin
+                addr_inc      = 1'h1;
+                cs_new        = 1'h1;
+                cs_we         = 1'h1;
+                core_ctrl_new = CTRL_S2V_PC_NEXT0;
                 core_ctrl_we  = 1'h1;
               end
           end
@@ -1098,10 +1146,13 @@ module aes_siv_core(
             cs_new          = 1'h0;
             cs_we           = 1'h1;
             cmac_finalize   = 1'h1;
-            cmac_inputs     = CMAC_PAD;
-            cmac_final_size = AES_BLOCK_SIZE;
             core_ctrl_new   = CTRL_S2V_PC_FINAL2;
             core_ctrl_we    = 1'h1;
+            cmac_inputs     = CMAC_PAD;
+            if (pc_length >= 19'h10)
+              cmac_final_size = pc_final_size;
+            else
+              cmac_final_size = AES_BLOCK_SIZE;
           end
 
 

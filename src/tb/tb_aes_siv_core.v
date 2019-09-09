@@ -237,6 +237,8 @@ module tb_aes_siv_core();
                    dut.d_reg, dut.d_new, dut.d_we);
           $display("v_reg: 0x%016x, v_we: 0x%01x",
                    dut.v_reg, dut.v_we);
+          $display("select: 0x%02x, xordend0: 0x%016x, xordend1: 0x%016x",
+                   dut.pc_length[3 : 0], dut.s2v_dp.xorend0, dut.s2v_dp.xorend1);
           $display("padded_block: 0x%016x", dut.s2v_dp.padded_block);
           $display("update_block: 0x%01x, block_mux: 0x%01x, block_we: 0x%01x",
                    dut.update_block, dut.block_mux, dut.block_we);
@@ -877,9 +879,9 @@ module tb_aes_siv_core();
   //      double(): 5be63c50 ba7a3c3a 9bbdf83c b7d8c755
   //      CMAC(ad): 128c62a1 ce3747a8 372c1c05 a538b96d
   //           xor: 496a5ef1 744d7b92 ac91e439 12e07e38
-  // xorend part 1: 74686973 20697320 736f6d65 20706c61
-  //                696e7465 78742074 6f20656e 637279
-  // xorend part 2: 391e7e84 072415f5 8cc2ad6f 3fa13b6b
+  // Xorend part 1: 74686973 20697320 736f6d65 20706c61
+  //                696e7465 78742074 6f20656e 63727939
+  // xorend part 2: 1e7e8407 2415f58c c2ad6f3f a13b6b00
   //   CMAC(final): 85825e22 e90cf2dd da2c548d c7c1b631
   //    ciphertext: 0dcdaca0 cebf9dc6 cb90583f 5bf1506e
   //                02cd4883 2b00e4e5 98b2b22a 53e6199d
@@ -917,9 +919,9 @@ module tb_aes_siv_core();
       write_block(16'h0021, 128'h696e7465_78742074_6f20656e_63727970);
       write_block(16'h0022, 128'h74207573_696e6720_5349562d_41455300);
       dut_pc_start  = 16'h0020;
-      dut_pc_length = 20'h24;
+      dut_pc_length = 20'h2f;
 
-      dump_mem(16'h0, 16'h11);
+      dump_mem(16'h0, 16'h24);
 
       dut_key = {128'h7f7e7d7c_7b7a7978_77767574_73727170,
                  128'h40414243_44454647_48494a4b_4c4d4e4f,
@@ -939,6 +941,8 @@ module tb_aes_siv_core();
       show_cmac = 0;
 
       $display("TC: S2V processing should be completed.");
+
+      dump_mem(16'h0, 16'h24);
 
 
       if (dut.v_reg != 128'h6a388223b4c07907611eb5f86f725597)
