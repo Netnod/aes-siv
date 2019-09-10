@@ -2,7 +2,7 @@
 Hardware implementation of AEAD_AES_SIV_CMAC
 
 ## Status
-Not completed. Does **NOT** work. Do **NOT** use.
+Functionally completed. Functionally verified.
 
 
 ## Introduction
