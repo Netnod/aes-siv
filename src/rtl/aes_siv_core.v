@@ -67,7 +67,7 @@ module aes_siv_core(
                     input wire [127 : 0]  block_rd,
                     output wire [127 : 0] block_wr,
 
-                    output wire [127 : 0] tag_in,
+                    input wire [127 : 0]  tag_in,
                     output wire [127 : 0] tag_out,
                     output wire           tag_ok,
                     output wire           ready
@@ -259,6 +259,7 @@ module aes_siv_core(
   assign block_wr = result_reg;
   assign ready    = ready_reg;
   assign tag_out  = v_reg;
+  assign tag_ok   = ~(tag_in ^ v_reg);
 
 
   //----------------------------------------------------------------
@@ -645,7 +646,11 @@ module aes_siv_core(
       // See RFC 5297, Section 2.5.
       if (init_ctr)
         begin
-          x_new = {v_reg[127 : 64], 1'h0, v_reg[62 : 32], 1'h0, v_reg[30 : 0]};
+          if (encdec)
+            x_new = {v_reg[127 : 64], 1'h0, v_reg[62 : 32], 1'h0, v_reg[30 : 0]};
+          else
+            x_new = {tag_in[127 : 64], 1'h0, tag_in[62 : 32], 1'h0, tag_in[30 : 0]};
+
           x_we  = 1'h1;
         end
 
@@ -803,12 +808,23 @@ module aes_siv_core(
           begin
             if (start)
               begin
-                ready_new     = 1'h0;
-                ready_we      = 1'h1;
-                s2v_init      = 1'h1;
-                cmac_init     = 1'h1;
-                core_ctrl_new = CTRL_S2V_INIT;
-                core_ctrl_we  = 1'h1;
+                if (encdec)
+                  begin
+                    ready_new     = 1'h0;
+                    ready_we      = 1'h1;
+                    s2v_init      = 1'h1;
+                    cmac_init     = 1'h1;
+                    core_ctrl_new = CTRL_S2V_INIT;
+                    core_ctrl_we  = 1'h1;
+                  end
+                else
+                  begin
+                    s2v_init      = 1'h1;
+                    ready_new     = 1'h0;
+                    ready_we      = 1'h1;
+                    core_ctrl_new = CTRL_CTR_INIT;
+                    core_ctrl_we  = 1'h1;
+                  end
               end
           end
 
@@ -1179,8 +1195,16 @@ module aes_siv_core(
 
                 if (!pc_zlen)
                   begin
-                    core_ctrl_new = CTRL_CTR_INIT;
-                    core_ctrl_we  = 1'h1;
+                    if (encdec)
+                      begin
+                        core_ctrl_new = CTRL_CTR_INIT;
+                        core_ctrl_we  = 1'h1;
+                      end
+                    else
+                      begin
+                        core_ctrl_new = CTRL_DONE;
+                        core_ctrl_we  = 1'h1;
+                      end
                   end
                 else
                   begin
@@ -1290,8 +1314,18 @@ module aes_siv_core(
 
                 if (block_ctr_reg == pc_num_blocks - 1)
                   begin
-                    core_ctrl_new = CTRL_DONE;
-                    core_ctrl_we  = 1'h1;
+                    if (encdec)
+                      begin
+                        core_ctrl_new = CTRL_DONE;
+                        core_ctrl_we  = 1'h1;
+                      end
+                    else
+                      begin
+                        s2v_init      = 1'h1;
+                        cmac_init     = 1'h1;
+                        core_ctrl_new = CTRL_S2V_INIT;
+                        core_ctrl_we  = 1'h1;
+                      end
                   end
                 else
                   begin

@@ -94,7 +94,7 @@ module tb_aes_siv_core();
   wire [15 : 0]  dut_addr;
   wire [127 : 0] dut_block_rd;
   wire [127 : 0] dut_block_wr;
-  wire [127 : 0] dut_tag_in;
+  reg [127 : 0]  dut_tag_in;
   wire [127 : 0] dut_tag_out;
   wire           dut_tag_ok;
   wire           dut_ready;
@@ -130,7 +130,6 @@ module tb_aes_siv_core();
                    .addr(dut_addr),
                    .block_rd(dut_block_rd),
                    .block_wr(dut_block_wr),
-
                    .tag_in(dut_tag_in),
                    .tag_out(dut_tag_out),
                    .tag_ok(dut_tag_ok),
@@ -483,6 +482,8 @@ module tb_aes_siv_core();
       dut_pc_start  = 16'hbeef;
       dut_pc_length = 20'h0;
 
+      dut_encdec = 1'h1;
+
       dut_start = 1'h1;
       #(CLK_PERIOD);
       dut_start = 1'h0;
@@ -556,6 +557,7 @@ module tb_aes_siv_core();
                  128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
                  128'h0};
       dut_mode = AEAD_AES_SIV_CMAC_256;
+      dut_encdec = 1'h1;
 
       $display("TC: S2V processing started.");
 
@@ -643,7 +645,9 @@ module tb_aes_siv_core();
                  128'h0,
                  128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
                  128'h0};
-      dut_mode = AEAD_AES_SIV_CMAC_256;
+
+      dut_mode   = AEAD_AES_SIV_CMAC_256;
+      dut_encdec = 1'h1;
 
       $display("TC: S2V processing started.");
 
@@ -753,6 +757,7 @@ module tb_aes_siv_core();
                  128'h40414243_44454647_48494a4b_4c4d4e4f,
                  128'h0};
       dut_mode = AEAD_AES_SIV_CMAC_256;
+      dut_encdec = 1'h1;
 
       $display("TC: S2V processing started.");
 
@@ -873,6 +878,7 @@ module tb_aes_siv_core();
                  128'h40414243_44454647_48494a4b_4c4d4e4f,
                  128'h0};
       dut_mode = AEAD_AES_SIV_CMAC_256;
+      dut_encdec = 1'h1;
 
       $display("TC: S2V processing started.");
 
@@ -905,6 +911,98 @@ module tb_aes_siv_core();
   endtask // test_s2v_A2_mod2
 
 
+
+  //----------------------------------------------------------------
+  // test_s2v_A1_decrypt
+  //
+  // Test case using test vectors from RFC 5297, A.1 to verify
+  // that the SIV Decrypt functionality works.
+  //----------------------------------------------------------------
+  task test_s2v_A1_decrypt;
+    begin : test_s2v_A1
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+      show_s2v  = 1;
+      show_aes  = 1;
+      show_cmac = 1;
+
+      $display("test_s2v_A1_decrypt: Verify SIV-Decrypt functionality.");
+
+      // Write test vectors into the test mem.
+      // Writing test vectors from RFC 5297, Appendix A.1
+      // Deterministic Authenticated Decryption Example
+
+      // AD: 6 * 4 bytes: 24 bytes in length
+      write_block(16'h0000, 128'h10111213_14151617_18191a1b_1c1d1e1f);
+      write_block(16'h0001, 128'h20212223_24252627_00000000_00000000);
+      dut_ad_start  = 16'h0000;
+      dut_ad_length = 20'h18;
+
+      // Nonce: 0 bytes. Ignored
+      dut_nonce_start  = 16'h0010;
+      dut_nonce_length = 20'h0;
+
+      // Ciphertext: 10 bytes.
+      write_block(16'h0020, 128'h40c02b96_90c4dc04_daef7f6a_fe5c0000);
+      dut_pc_start  = 16'h0020;
+      dut_pc_length = 20'h0e;
+
+      dump_mem(16'h0, 16'h22);
+
+      dut_key = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0,
+                 128'h0,
+                 128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
+                 128'h0};
+
+      dut_mode   = AEAD_AES_SIV_CMAC_256;
+      dut_encdec = 1'h0;
+      dut_tag_in = 128'h85632d07_c6e8f37f_950acd32_0a2ecc93;
+
+
+      $display("TC: SIV Decrypt processing started.");
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_aes  = 0;
+      show_cmac = 0;
+
+      $display("TC: SIV Decrypt processing should be completed.");
+
+      dump_mem(16'h0, 16'h22);
+
+      if (!dut_tag_ok)
+        begin
+          $display("TC: ERROR - Generated tag did not match generated tag.");
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+
+      if (mem.mem[16'h0020] != 128'h11223344_55667788_99aabbcc_ddee0000)
+        begin
+          $display("TC: ERROR - ciphertext incorrect. Expected 0x11223344_55667788_99aabbcc_ddee0000, got 0x%032x.",
+                   mem.mem[16'h0020]);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (tc_correct)
+        $display("TC: SUCCESS - Tag and ciphertext correct.");
+      else
+        $display("TC: NO SUCCESS - Tag and ciphertext NOT correct.");
+      $display("");
+    end
+  endtask // test_s2v_A1
+
+
   //----------------------------------------------------------------
   // main
   //
@@ -918,11 +1016,15 @@ module tb_aes_siv_core();
       init_sim();
       reset_dut();
 
-      test_all_zero_s2v();
-      test_s2v_A1();
-      test_s2v_A1_mod1();
-      test_s2v_A2_mod1();
-      test_s2v_A2_mod2();
+      // S2V and SIV-Encrypt test cases.
+//      test_all_zero_s2v();
+//      test_s2v_A1();
+//      test_s2v_A1_mod1();
+//      test_s2v_A2_mod1();
+//      test_s2v_A2_mod2();
+
+      // SIV-Decrypt test cases.
+      test_s2v_A1_decrypt();
 
       display_test_results();
 
