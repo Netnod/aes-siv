@@ -1309,16 +1309,16 @@ module tb_aes_siv_core();
       reset_dut();
 
       // S2V and SIV-Encrypt test cases.
-//      test_all_zero_s2v();
-//      test_s2v_A1();
-//      test_s2v_A1_mod1();
-//      test_s2v_A2_mod1();
-//      test_s2v_A2_mod2();
+      test_all_zero_s2v();
+      test_s2v_A1();
+      test_s2v_A1_mod1();
+      test_s2v_A2_mod1();
+      test_s2v_A2_mod2();
 
       // SIV-Decrypt test cases.
-//      test_s2v_A1_decrypt();
-//      test_s2v_A1_mod1_decrypt();
-//      test_s2v_A2_mod1_decrypt();
+      test_s2v_A1_decrypt();
+      test_s2v_A1_mod1_decrypt();
+      test_s2v_A2_mod1_decrypt();
       test_s2v_A2_mod2_decrypt();
 
       display_test_results();
