@@ -114,7 +114,8 @@ module aes_siv_core(
   localparam CMAC_XOREND0 = 3'h3;
   localparam CMAC_XOREND1 = 3'h4;
   localparam CMAC_PAD     = 3'h5;
-  localparam CMAC_FINAL   = 3'h6;
+  localparam CMAC_PAD_XOR = 3'h6;
+  localparam CMAC_FINAL   = 3'h7;
 
   localparam D_CMAC = 2'h0;
   localparam D_DBL  = 2'h1;
@@ -575,7 +576,8 @@ module aes_siv_core(
         CMAC_BLOCK:   cmac_block = block_rd;
         CMAC_XOREND0: cmac_block = xorend0;
         CMAC_XOREND1: cmac_block = xorend1;
-        CMAC_PAD:     cmac_block = block_reg;
+        CMAC_PAD:     cmac_block = padded_block;
+        CMAC_PAD_XOR: cmac_block = padded_block ^d_reg;
         CMAC_FINAL:   cmac_block = d_reg;
       endcase // case (cmac_inputs)
 
@@ -1061,9 +1063,12 @@ module aes_siv_core(
                 if (pc_zlen)
                   begin
                     // Handle zero length PC.
-                    core_ctrl_new = CTRL_DONE;
+                    update_d      = 1'h1;
+                    ctrl_d        = D_DBL;
+                    core_ctrl_new = CTRL_S2V_PC_FINAL1;
                     core_ctrl_we  = 1'h1;
                   end
+
                 else if (pc_length_reg < 20'h10)
                   begin
                     // Handle single block PC < 16 bytes.
@@ -1140,19 +1145,29 @@ module aes_siv_core(
               end
           end
 
+        CTRL_S2V_PC_FINAL0:
+          begin
+            if (ack)
+              begin
+                core_ctrl_new = CTRL_S2V_PC_FINAL1;
+                core_ctrl_we  = 1'h1;
+              end
+          end
 
         CTRL_S2V_PC_FINAL1:
           begin
-            cs_new          = 1'h0;
-            cs_we           = 1'h1;
-            cmac_finalize   = 1'h1;
-            core_ctrl_new   = CTRL_S2V_PC_FINAL2;
-            core_ctrl_we    = 1'h1;
-            cmac_inputs     = CMAC_PAD;
+            cs_new        = 1'h0;
+            cs_we         = 1'h1;
+            cmac_finalize = 1'h1;
+            cmac_inputs   = CMAC_PAD_XOR;
+
             if (pc_length >= 19'h10)
               cmac_final_size = pc_final_size;
             else
               cmac_final_size = AES_BLOCK_SIZE;
+
+            core_ctrl_new   = CTRL_S2V_PC_FINAL2;
+            core_ctrl_we    = 1'h1;
           end
 
 
@@ -1160,9 +1175,18 @@ module aes_siv_core(
           begin
             if (cmac_ready)
               begin
-                update_v      = 1'h1;
-                core_ctrl_new = CTRL_CTR_INIT;
-                core_ctrl_we  = 1'h1;
+                update_v = 1'h1;
+
+                if (!pc_zlen)
+                  begin
+                    core_ctrl_new = CTRL_CTR_INIT;
+                    core_ctrl_we  = 1'h1;
+                  end
+                else
+                  begin
+                    core_ctrl_new = CTRL_DONE;
+                    core_ctrl_we  = 1'h1;
+                  end
               end
           end
 

@@ -458,185 +458,6 @@ module tb_aes_siv_core();
 
 
   //----------------------------------------------------------------
-  // tc2_s2v_init
-  //
-  // Check that pulling s2v_init perform cmac operation in all
-  // zero data and sets the d_reg correctly. Key from RFC 5297.
-  //----------------------------------------------------------------
-  task tc2_s2v_init;
-    begin : tc2
-      inc_tc_ctr();
-      tc_correct = 1;
-
-      debug_dut = 1;
-
-      $display("TC2: Check that s2v_init works as expected.");
-      dut_key  = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0, {128{1'h0}},
-                   128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff, {128{1'h0}}};
-      dut_mode = AEAD_AES_SIV_CMAC_256;
-
-      #(2 * CLK_PERIOD);
-      wait_ready();
-
-      #(2 * CLK_PERIOD);
-      debug_dut = 0;
-
-      if (dut.d_reg != 128'h0e04dfafc1efbf040140582859bf073a)
-        begin
-          $display("TC2: ERROR - d_reg incorrect. Expected 0x0e04dfafc1efbf040140582859bf073a, got 0x%032x.", dut.d_reg);
-          tc_correct = 0;
-          inc_error_ctr();
-        end
-
-      if (tc_correct)
-        $display("TC2: SUCCESS - d_reg correctly initialized.");
-      else
-        $display("TC2: NO SUCCESS - d_reg not correctly initialized.");
-      $display("");
-    end
-  endtask // tc2
-
-
-  //----------------------------------------------------------------
-  // tc3_s2v_finalize_no_ad
-  //
-  // Check that pulling s2v_finalize before no AD has been
-  // processed leads to v_reg getting the CMAC for all one data.
-  // Key from RFC 5297.
-  //----------------------------------------------------------------
-  task tc3_s2v_finalize_no_ad;
-    begin : tc2
-      inc_tc_ctr();
-      tc_correct = 1;
-
-      debug_dut = 1;
-
-      $display("TC3: Check that v_reg is set when no AD has been processed.");
-
-      $display("TC3: Resetting DUT first.");
-      reset_dut();
-      #(2 * CLK_PERIOD);
-
-      $display("TC3: Calling s2v finalize.");
-      dut_key  = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0, {128{1'h0}},
-                   128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff, {128{1'h0}}};
-      dut_mode = AEAD_AES_SIV_CMAC_256;
-
-      #(2 * CLK_PERIOD);
-      wait_ready();
-
-      #(2 * CLK_PERIOD);
-      debug_dut = 0;
-
-      if (dut.v_reg != 128'h949f99cbcc3eb5da6d3c45d0f59aa9c7)
-        begin
-          $display("TC2: ERROR - v_reg incorrect. Expected 0x949f99cbcc3eb5da6d3c45d0f59aa9c7, got 0x%032x.", dut.v_reg);
-          tc_correct = 0;
-          inc_error_ctr();
-        end
-
-      if (tc_correct)
-        $display("TCC: SUCCESS - v_reg correctly set.");
-      else
-        $display("TCC: NO SUCCESS - v_reg not correctly set.");
-      $display("");
-    end
-  endtask // tc3_s2v_finalize_no_ad
-
-
-  //----------------------------------------------------------------
-  // tc3_s2v_ad1
-  //
-  // Check that pulling s2v_finalize before no AD has been
-  // processed leads to v_reg getting the CMAC for all one data.
-  // Key from RFC 5297.
-  //----------------------------------------------------------------
-  task tc4_s2v_ad1;
-    begin : tc2
-      inc_tc_ctr();
-      tc_correct = 1;
-
-      debug_dut = 1;
-
-      $display("TC3: Check that v_reg is set when no AD has been processed.");
-
-      $display("TC3: Resetting DUT first.");
-      reset_dut();
-      #(2 * CLK_PERIOD);
-
-      $display("TC3: Calling s2v finalize.");
-      dut_key  = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0, {128{1'h0}},
-                   128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff, {128{1'h0}}};
-      dut_mode = AEAD_AES_SIV_CMAC_256;
-
-      #(2 * CLK_PERIOD);
-      wait_ready();
-
-      #(2 * CLK_PERIOD);
-      debug_dut = 0;
-
-      if (dut.v_reg != 128'h949f99cbcc3eb5da6d3c45d0f59aa9c7)
-        begin
-          $display("TC: ERROR - v_reg incorrect. Expected 0x949f99cbcc3eb5da6d3c45d0f59aa9c7, got 0x%032x.", dut.v_reg);
-          tc_correct = 0;
-          inc_error_ctr();
-        end
-
-      if (tc_correct)
-        $display("TC: SUCCESS - v_reg correctly set.");
-      else
-        $display("TC: NO SUCCESS - v_reg not correctly set.");
-      $display("");
-    end
-  endtask // tc4_s2v_ad1
-
-
-  //----------------------------------------------------------------
-  // test_block_bits
-  //
-  // Check that the core calculates the correct number of blocks
-  // and bits in the last block.
-  //----------------------------------------------------------------
-  task test_block_bits;
-    begin : test_block_bits
-      inc_tc_ctr();
-      tc_correct = 1;
-
-      debug_dut = 1;
-
-      $display("TCY: Check that core calculated number blocks, bits correctly");
-
-      // Set access mux to TB. Write data to address 0x0040.
-      dut_ad_start  = 16'h00a0;
-      dut_ad_length = 20'h0;
-
-      dut_nonce_start  = 16'h55aa;
-      dut_nonce_length = 20'h4e31;
-
-      dut_pc_start  = 16'hbeef;
-      dut_pc_length = 20'h17;
-
-      dut_start = 1'h1;
-      #(CLK_PERIOD);
-      dut_start = 1'h0;
-
-      wait_ready();
-      #(2 * CLK_PERIOD);
-      debug_dut = 0;
-
-
-      $display("All calculations should be done. Showing results:");
-      $display("ad_start_reg: 0x%04x, ad_length_reg: 0x%06x, ad_zlen: 0x%01x, ad_num_blocks: 0x%05x, ad_final_size: 0x%02x",
-               dut.ad_start_reg, dut.ad_length_reg, dut.ad_zlen, dut.ad_num_blocks, dut.ad_final_size);
-      $display("nonce_start_reg: 0x%04x, nonce_length_reg: 0x%06x, nonce_zlen: 0x%01x, nonce_num_blocks: 0x%05x, nonce_final_size: 0x%02x",
-               dut.nonce_start_reg, dut. nonce_length_reg, dut.nonce_zlen, dut.nonce_num_blocks, dut.nonce_final_size);
-      $display("pc_start_reg: 0x%04x, pc_length_reg: 0x%06x, pc_zlen: 0x%01x, pc_num_blocks: 0x%05x, pc_final_size: 0x%02x",
-               dut.ad_start_reg, dut.pc_length_reg, dut.pc_zlen, dut.pc_num_blocks, dut.pc_final_size);
-    end
-  endtask // test_block_bits
-
-
-  //----------------------------------------------------------------
   // test_all_zero_s2v
   //
   // Test that the core handles the case when all inputs have
@@ -782,7 +603,7 @@ module tb_aes_siv_core();
   // test_s2v_A1_mod1
   //
   // Test case using test vectors from RFC 5297, A.1 to verify
-  // that the S2V functionality works. This case id modified
+  // that the S2V functionality works. This case is modified
   // to have no AD, but instead a nonce field.
   // Will it be the same? It should be.
   //----------------------------------------------------------------
@@ -1011,7 +832,7 @@ module tb_aes_siv_core();
   //       double(): 5be63c50 ba7a3c3a 9bbdf83c b7d8c755
   //       CMAC(ad): 128c62a1 ce3747a8 372c1c05 a538b96d
   //            xor: 496a5ef1 744d7b92 ac91e439 12e07e38
-  //            pad: 80000000 00000000 00000000 00000000
+  //            Pad: 80000000 00000000 00000000 00000000
   //            xor: 12d4bde2 e89af725 5923c872 25c0fc70
   //    CMAC(final): 4cf1e6f9 180dca76 83caaa9c 7bb70ec6
   //     ciphertext:
@@ -1041,20 +862,17 @@ module tb_aes_siv_core();
       dut_nonce_start  = 16'h0010;
       dut_nonce_length = 20'h10;
 
-      // Plaintext: 47 bytes.
-      write_block(16'h0020, 128'h74686973_20697320_736f6d65_20706c61);
-      write_block(16'h0021, 128'h696e7465_78742074_6f20656e_63727970);
-      write_block(16'h0022, 128'h74207573_696e6720_5349562d_41455300);
+      // Zero length plaintext.
       dut_pc_start  = 16'h0020;
-      dut_pc_length = 20'h2f;
+      dut_pc_length = 20'h00;
 
       dump_mem(16'h0, 16'h24);
 
       dut_key = {128'h7f7e7d7c_7b7a7978_77767574_73727170,
+                 128'h0,
                  128'h40414243_44454647_48494a4b_4c4d4e4f,
-                 256'h0};
+                 128'h0};
       dut_mode = AEAD_AES_SIV_CMAC_256;
-
 
       $display("TC: S2V processing started.");
 
@@ -1071,9 +889,9 @@ module tb_aes_siv_core();
       $display("TC: S2V processing should be completed.");
 
 
-      if (dut.v_reg != 128'h6a388223b4c07907611eb5f86f725597)
+      if (dut.v_reg != 128'h4cf1e6f9_180dca76_83caaa9c_7bb70ec6)
         begin
-          $display("TC: ERROR - v_reg incorrect. Expected 0x6a388223b4c07907611eb5f86f725597, got 0x%032x.", dut.v_reg);
+          $display("TC: ERROR - v_reg incorrect. Expected 0x4cf1e6f9_180dca76_83caaa9c_7bb70ec6, got 0x%032x.", dut.v_reg);
           tc_correct = 0;
           inc_error_ctr();
         end
@@ -1099,16 +917,12 @@ module tb_aes_siv_core();
 
       init_sim();
       reset_dut();
-//      test_block_bits();
-//      test_all_zero_s2v();
-//      test_s2v_A1();
-//        test_s2v_A1_mod1();
-      test_s2v_A2_mod1();
-//      test_s2v_A2_mod2();
 
-//      tc1_reset_state();
-//      tc2_s2v_init();
-//      tc3_s2v_finalize_no_ad();
+      test_all_zero_s2v();
+      test_s2v_A1();
+      test_s2v_A1_mod1();
+      test_s2v_A2_mod1();
+      test_s2v_A2_mod2();
 
       display_test_results();
 
