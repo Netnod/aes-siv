@@ -145,10 +145,6 @@ module aes_siv_core(
   reg [127 : 0] block_new;
   reg           block_we;
 
-  reg [127 : 0] ctr_result_reg;
-  reg [127 : 0] ctr_result_new;
-  reg           ctr_result_we;
-
   reg [15 : 0]  addr_reg;
   reg [15 : 0]  addr_new;
   reg           addr_we;
@@ -199,7 +195,6 @@ module aes_siv_core(
   //----------------------------------------------------------------
   // Wires.
   //----------------------------------------------------------------
-  reg            aes_encdec;
   reg            aes_init;
   reg            aes_next;
   reg [255 : 0]  aes_key;
@@ -247,8 +242,6 @@ module aes_siv_core(
   reg            update_block;
   reg [2 : 0]    block_mux;
 
-  reg            ctr_result;
-
 
   //----------------------------------------------------------------
   // Concurrent connectivity for ports etc.
@@ -259,7 +252,7 @@ module aes_siv_core(
   assign block_wr = result_reg;
   assign ready    = ready_reg;
   assign tag_out  = v_reg;
-  assign tag_ok   = ~(tag_in ^ v_reg);
+  assign tag_ok   = ~|(tag_in ^ v_reg);
 
 
   //----------------------------------------------------------------
@@ -320,14 +313,13 @@ module aes_siv_core(
   // All registers are positive edge triggered with synchronous
   // active low reset.
   //----------------------------------------------------------------
-  always @ (posedge clk)
+  always @ (posedge clk or negedge reset_n)
     begin: reg_update
       if (!reset_n)
         begin
           ready_reg        <= 1'h1;
           block_reg        <= 128'h0;
           result_reg       <= 128'h0;
-          ctr_result_reg   <= 128'h0;
           d_reg            <= 128'h0;
           v_reg            <= 128'h0;
           x_reg            <= 128'h0;
@@ -401,8 +393,6 @@ module aes_siv_core(
   //----------------------------------------------------------------
   always @*
     begin : s2v_dp
-      reg [127 : 0] mask;
-      reg [127 : 0] masked_block;
       reg [127 : 0] padded_block;
       reg [127 : 0] xorend0;
       reg [127 : 0] xorend1;
@@ -635,6 +625,10 @@ module aes_siv_core(
         5'h0e: mask = {{14{8'hff}}, {2{8'h0}}};
         5'h0f: mask = {{15{8'hff}}, {1{8'h0}}};
         5'h10: mask = {{16{8'hff}}, {0{8'h0}}};
+        default:
+          begin
+            mask = 128'h0;
+          end
       endcase
 
       if (final_wr_block)
@@ -695,7 +689,7 @@ module aes_siv_core(
           else
             begin
               ad_num_blocks = ad_length[19 : 4] + 1'h1;
-              ad_final_size = {ad_length[3 : 0], 3'h0};
+              ad_final_size = {ad_length[4 : 0], 3'h0};
             end
         end
 
@@ -709,7 +703,7 @@ module aes_siv_core(
           else
             begin
               nonce_num_blocks = nonce_length[19 : 4] + 1'h1;
-              nonce_final_size = {nonce_length[3 : 0], 3'h0};
+              nonce_final_size = {nonce_length[4 : 0], 3'h0};
             end
         end
 
@@ -723,7 +717,7 @@ module aes_siv_core(
           else
             begin
               pc_num_blocks = pc_length[19 : 4] + 1'h1;
-              pc_final_size = {pc_length[3 : 0], 3'h0};
+              pc_final_size = {pc_length[4 : 0], 3'h0};
             end
         end
     end
@@ -750,6 +744,9 @@ module aes_siv_core(
             ADDR_AD: addr_new    = ad_start_reg;
             ADDR_NONCE: addr_new = nonce_start_reg;
             ADDR_PC: addr_new    = pc_start_reg;
+            default:
+              begin
+              end
           endcase // case (addr_mux)
 
           block_ctr_new = 16'h0;
@@ -792,7 +789,6 @@ module aes_siv_core(
       update_d        = 1'h0;
       ctrl_d          = D_CMAC;
       update_v        = 1'h0;
-      ctr_result_we   = 1'h0;
       cs_new          = 1'h0;
       cs_we           = 1'h0;
       we_new          = 1'h0;
@@ -1177,7 +1173,7 @@ module aes_siv_core(
             cmac_finalize = 1'h1;
             cmac_inputs   = CMAC_PAD_XOR;
 
-            if (pc_length >= 19'h10)
+            if (pc_length >= 20'h10)
               cmac_final_size = pc_final_size;
             else
               cmac_final_size = AES_BLOCK_SIZE;
