@@ -1202,6 +1202,99 @@ module tb_aes_siv_core();
   endtask // test_s2v_A2_mod1_decrypt
 
 
+
+  //----------------------------------------------------------------
+  // test_s2v_A2_mod2_decrypt
+  //
+  // Test case using test vectors from RFC 5297, A.2 but modified
+  // to only have a plaintext field with zero length.
+  // Expected results:
+  // Tag: 4cf1e6f9 180dca76 83caaa9c 7bb70ec6
+  //
+  // Expected partial results:
+  //     CMAC(zero): c8b43b59 74960e7c e6a5dd85 231e591a
+  //       double(): 916876b2 e92c1cf9 cd4bbb0a 463cb2b3
+  //       CMAC(ad): 3c9b689a b41102e4 80954714 1dd0d15a
+  //            xor: adf31e28 5d3d1e1d 4ddefc1e 5bec63e9
+  //       double(): 5be63c50 ba7a3c3a 9bbdf83c b7d8c755
+  //       CMAC(ad): 128c62a1 ce3747a8 372c1c05 a538b96d
+  //            xor: 496a5ef1 744d7b92 ac91e439 12e07e38
+  //            Pad: 80000000 00000000 00000000 00000000
+  //            xor: 12d4bde2 e89af725 5923c872 25c0fc70
+  //    CMAC(final): 4cf1e6f9 180dca76 83caaa9c 7bb70ec6
+  //     ciphertext:
+  //        IV || C: 4cf1e6f9 180dca76 83caaa9c 7bb70ec6
+  //
+  //----------------------------------------------------------------
+  task test_s2v_A2_mod2_decrypt;
+    begin : test_s2v_A2_mod2_decrypt
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+      show_s2v  = 1;
+      show_cmac = 1;
+
+      $display("test_s2v_A2_mod2: Verify S2V functionality.");
+
+      // AD: 10 * 4 bytes: 40 bytes in length.
+      write_block(16'h0000, 128'h00112233_44556677_8899aabb_ccddeeff);
+      write_block(16'h0001, 128'hdeaddada_deaddada_ffeeddcc_bbaa9988);
+      write_block(16'h0002, 128'h77665544_33221100_00000000_00000000);
+      dut_ad_start  = 16'h0000;
+      dut_ad_length = 20'h28;
+
+      // Nonce: 16.
+      write_block(16'h0010, 128'h09f91102_9d74e35b_d84156c5_635688c0);
+      dut_nonce_start  = 16'h0010;
+      dut_nonce_length = 20'h10;
+
+      // Zero length ciphertext.
+      dut_pc_start  = 16'h0020;
+      dut_pc_length = 20'h00;
+
+      dump_mem(16'h0, 16'h24);
+
+      dut_key = {128'h7f7e7d7c_7b7a7978_77767574_73727170,
+                 128'h0,
+                 128'h40414243_44454647_48494a4b_4c4d4e4f,
+                 128'h0};
+
+      dut_mode   = AEAD_AES_SIV_CMAC_256;
+      dut_encdec = 1'h0;
+      dut_tag_in = 128'h4cf1e6f9_180dca76_83caaa9c_7bb70ec6;
+
+      $display("TC: SIV Decrypt processing started.");
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+
+      $display("TC: SIV Decrypt processing should be completed.");
+
+
+      if (dut.v_reg != 128'h4cf1e6f9_180dca76_83caaa9c_7bb70ec6)
+        begin
+          $display("TC: ERROR - v_reg incorrect. Expected 0x4cf1e6f9_180dca76_83caaa9c_7bb70ec6, got 0x%032x.", dut.v_reg);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (tc_correct)
+        $display("TC: SUCCESS - v_reg correctly set.");
+      else
+        $display("TC: NO SUCCESS - v_reg not correctly set.");
+      $display("");
+    end
+  endtask // test_s2v_A2_mod2_decrypt
+
+
   //----------------------------------------------------------------
   // main
   //
@@ -1225,7 +1318,8 @@ module tb_aes_siv_core();
       // SIV-Decrypt test cases.
 //      test_s2v_A1_decrypt();
 //      test_s2v_A1_mod1_decrypt();
-      test_s2v_A2_mod1_decrypt();
+//      test_s2v_A2_mod1_decrypt();
+      test_s2v_A2_mod2_decrypt();
 
       display_test_results();
 

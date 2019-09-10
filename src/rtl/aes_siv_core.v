@@ -1235,12 +1235,22 @@ module aes_siv_core(
 
         CTRL_CTR_INIT:
           begin
-            aes_init      = 1'h1;
-            addr_set      = 1'h1;
-            addr_mux      = ADDR_PC;
-            init_ctr      = 1'h1;
-            core_ctrl_new = CTRL_CTR_NEXT;
-            core_ctrl_we  = 1'h1;
+            if (pc_zlen)
+              begin
+                s2v_init      = 1'h1;
+                cmac_init     = 1'h1;
+                core_ctrl_new = CTRL_S2V_INIT;
+                core_ctrl_we  = 1'h1;
+              end
+            else
+              begin
+                aes_init      = 1'h1;
+                addr_set      = 1'h1;
+                addr_mux      = ADDR_PC;
+                init_ctr      = 1'h1;
+                core_ctrl_new = CTRL_CTR_NEXT;
+                core_ctrl_we  = 1'h1;
+              end
           end
 
 
