@@ -605,9 +605,8 @@ module tb_aes_siv_core();
   // test_s2v_A1_mod1
   //
   // Test case using test vectors from RFC 5297, A.1 to verify
-  // that the S2V functionality works. This case is modified
-  // to have no AD, but instead a nonce field.
-  // Will it be the same? It should be.
+  // that the SIV Encrypt functionality works. This case is
+  // modified to have no AD, but instead a nonce field.
   //----------------------------------------------------------------
   task test_s2v_A1_mod1;
     begin : test_s2v_A1_mod1
@@ -995,12 +994,99 @@ module tb_aes_siv_core();
         end
 
       if (tc_correct)
-        $display("TC: SUCCESS - Tag and ciphertext correct.");
+        $display("TC: SUCCESS - Tag and plaintext correct.");
       else
-        $display("TC: NO SUCCESS - Tag and ciphertext NOT correct.");
+        $display("TC: NO SUCCESS - Tag and plaintext NOT correct.");
       $display("");
     end
-  endtask // test_s2v_A1
+  endtask // test_s2v_A1_decrypt
+
+
+  //----------------------------------------------------------------
+  // test_s2v_A1_mod1_decrypt
+  //
+  // Test case using test vectors from RFC 5297, A.1 to verify
+  // that the SIV Decrypt functionality works. This case is
+  // modified to have no AD, but instead a nonce field.
+  //----------------------------------------------------------------
+  task test_s2v_A1_mod1_decrypt;
+    begin : test_s2v_A1_mod1_decrypt
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+      show_s2v  = 1;
+      show_cmac = 1;
+
+      $display("test_s2v_A1_mod1_decrypt: Verify SIV Decrypt functionality.");
+
+      // Write test vectors into the test mem.
+      // Writing test vectors from RFC 5297, Appendix A.1
+      // Deterministic Authenticated Encryption Example
+
+      // AD: 0 bytes. Should be ignored.
+      dut_ad_start  = 16'h0000;
+      dut_ad_length = 20'h0;
+
+      // Nonce: 24 bytes.
+      write_block(16'h0010, 128'h10111213_14151617_18191a1b_1c1d1e1f);
+      write_block(16'h0011, 128'h20212223_24252627_00000000_00000000);
+      dut_nonce_start  = 16'h0010;
+      dut_nonce_length = 20'h18;
+
+      // Ciphertext Plaintext: 10 bytes.
+      write_block(16'h0020, 128'h40c02b96_90c4dc04_daef7f6a_fe5c0000);
+      dut_pc_start  = 16'h0020;
+      dut_pc_length = 20'h0e;
+
+      dump_mem(16'h0, 16'h22);
+
+      dut_key = {128'hfffefdfc_fbfaf9f8_f7f6f5f4_f3f2f1f0,
+                 128'h0,
+                 128'hf0f1f2f3_f4f5f6f7_f8f9fafb_fcfdfeff,
+                 128'h0};
+
+      dut_mode   = AEAD_AES_SIV_CMAC_256;
+      dut_encdec = 1'h0;
+
+      $display("TC: SIV Decrypt processing started.");
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+
+      $display("TC: SIV Decrypt processing should be completed.");
+
+      dump_mem(16'h0, 16'h22);
+
+      if (!dut_tag_ok)
+        begin
+          $display("TC: ERROR - Generated tag did not match generated tag.");
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (mem.mem[16'h0020] != 128'h11223344_55667788_99aabbcc_ddee0000)
+        begin
+          $display("TC: ERROR - ciphertext incorrect. Expected 0x11223344_55667788_99aabbcc_ddee0000, got 0x%032x.",
+                   mem.mem[16'h0020]);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (tc_correct)
+        $display("TC: SUCCESS - Tag and plaintext correct.");
+      else
+        $display("TC: NO SUCCESS - Tag and plaintext NOT correct.");
+      $display("");
+    end
+  endtask // test_s2v_A1_mod1_decrypt
 
 
   //----------------------------------------------------------------
@@ -1024,7 +1110,8 @@ module tb_aes_siv_core();
 //      test_s2v_A2_mod2();
 
       // SIV-Decrypt test cases.
-      test_s2v_A1_decrypt();
+//      test_s2v_A1_decrypt();
+      test_s2v_A1_mod1_decrypt();
 
       display_test_results();
 
