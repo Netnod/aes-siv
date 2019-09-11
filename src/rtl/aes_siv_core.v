@@ -5,10 +5,6 @@
 // Implementation av aead_aes_siv_cmac as specified in RFC 5297:
 // https://tools.ietf.org/html/rfc5297
 //
-// The core supports:
-// AEAD_AES_SIV_CMAC_256
-// AEAD_AES_SIV_CMAC_512
-//
 //
 // Author: Joachim Strombergson
 //
@@ -202,7 +198,6 @@ module aes_siv_core(
   reg [127 : 0]  aes_block;
   wire [127 : 0] aes_result;
   wire           aes_ready;
-  wire           aes_valid;
 
   reg [255 : 0]  cmac_key;
   reg            cmac_keylen;
@@ -213,7 +208,6 @@ module aes_siv_core(
   reg [127 : 0]  cmac_block;
   wire [127 : 0] cmac_result;
   wire           cmac_ready;
-  wire           cmac_valid;
   reg [2 : 0]    cmac_inputs;
 
   reg            init_ctr;
@@ -285,8 +279,7 @@ module aes_siv_core(
                .keylen(aes_keylen),
 
                .block(aes_block),
-               .result(aes_result),
-               .result_valid(aes_valid)
+               .result(aes_result)
                );
 
 
@@ -301,8 +294,7 @@ module aes_siv_core(
                  .finalize(cmac_finalize),
                  .block(cmac_block),
                  .result(cmac_result),
-                 .ready(cmac_ready),
-                 .valid(cmac_valid)
+                 .ready(cmac_ready)
                 );
 
 
