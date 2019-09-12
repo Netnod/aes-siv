@@ -46,6 +46,8 @@ TB_CMAC_SRC = ../../cmac/src/tb/tb_cmac_core.v
 CORE_SRC = ../src/rtl/aes_siv_core.v $(CMAC_SRC)
 TB_CORE_SRC = ../src/tb/tb_aes_siv_core.v ../src/tb/tb_core_mem.v
 
+WRAPPER_SRC = ../src/util/wrapper_aes_siv_core.v $(CORE_SRC)
+
 CC = iverilog
 CC_FLAGS = -Wall
 
@@ -53,7 +55,7 @@ LINT = verilator
 LINT_FLAGS = +1364-2001ext+ --lint-only  -Wall -Wno-fatal -Wno-DECLFILENAME
 
 
-all: core.sim cmac.sim
+all: core.sim cmac.sim wrapper.sim
 
 
 core.sim: $(TB_CORE_SRC) $(CORE_SRC)
@@ -62,6 +64,10 @@ core.sim: $(TB_CORE_SRC) $(CORE_SRC)
 
 cmac.sim: $(TB_CMAC_SRC) $(CMAC_SRC)
 	$(CC) $(CC_FLAGS) -o cmac.sim $(TB_CMAC_SRC) $(CMAC_SRC)
+
+
+wrapper.sim: $(WRAPPER_SRC)
+	$(CC) $(CC_FLAGS) -o wrapper.sim $(WRAPPER_SRC)
 
 
 sim-core: core.sim
@@ -76,10 +82,14 @@ lint:  $(CORE_SRC)
 	$(LINT) $(LINT_FLAGS) $(CORE_SRC)
 
 
+lint_wrapper:  $(WRAPPER_SRC)
+	$(LINT) $(LINT_FLAGS) $(WRAPPER_SRC)
+
+
 clean:
 	rm -f core.sim
 	rm -f cmac.sim
-
+	rm -f wrapper.sim
 
 help:
 	@echo "Build system for simulation of AES Verilog core"
