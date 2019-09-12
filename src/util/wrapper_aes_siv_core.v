@@ -46,8 +46,17 @@ module wrapper_aes_siv_core(
 
                             input wire [127 : 0]  block_in,
                             output wire [127 : 0] block_out,
-                            input wire   [3 : 0]  mux_ctrl
+                            input wire   [2 : 0]  mux_ctrl
                             );
+
+
+  //----------------------------------------------------------------
+  // Registers.
+  //----------------------------------------------------------------
+  reg [127 : 0] block_in_reg;
+  reg [127 : 0] block_out_reg;
+  reg [127 : 0] block_out_new;
+  reg [2 :  0]  mux_ctrl_reg;
 
 
   //----------------------------------------------------------------
@@ -74,13 +83,11 @@ module wrapper_aes_siv_core(
   wire           core_tag_ok;
   wire           core_ready;
 
-  reg            tmp_block_out;
-
 
   //----------------------------------------------------------------
   // Concurrent connectivity for ports etc.
   //----------------------------------------------------------------
-  assign block_out = tmp_block_out;
+  assign block_out = block_out_reg;
 
 
   //----------------------------------------------------------------
@@ -112,6 +119,31 @@ module wrapper_aes_siv_core(
                    );
 
 
+
+  //----------------------------------------------------------------
+  // reg_update
+  //
+  // Update functionality for all registers in the core.
+  // All registers are positive edge triggered with synchronous
+  // active low reset.
+  //----------------------------------------------------------------
+  always @ (posedge clk or negedge reset_n)
+    begin: reg_update
+      if (!reset_n)
+        begin
+          mux_ctrl_reg  <= 3'h0;
+          block_in_reg  <= 128'h0;
+          block_out_reg <= 128'h0;
+        end
+      else
+        begin
+          mux_ctrl_reg  <= mux_ctrl;
+          block_in_reg  <= block_in;
+          block_out_reg <= block_out_new;
+        end
+    end // reg_update
+
+
   //----------------------------------------------------------------
   // pinmux
   //
@@ -132,57 +164,57 @@ module wrapper_aes_siv_core(
       core_ack          = 1'h0;
       core_block_rd     = 128'h0;
       core_tag_in       = 128'h0;
-      tmp_block_out     = 256'h0;
+      block_out_new     = 128'h0;
 
-      case (mux_ctrl)
+      case (mux_ctrl_reg)
         0:
           begin
-            core_ad_start     = block_in[15 : 0];
-            core_ad_length    = block_in[35 : 16];
-            core_encdec       = block_in[40];
-            core_mode         = block_in[41];
-            core_start        = block_in[42];
-            core_ack          = block_in[43];
-            core_nonce_start  = block_in[63 : 48];
-            core_nonce_length = block_in[83 : 64];
-            core_pc_start     = block_in[105 : 90];
-            core_pc_length    = block_in[125 : 106];
-            tmp_block_out     = {108'h0, core_cs, core_we, core_addr,
+            core_ad_start     = block_in_reg[15 : 0];
+            core_ad_length    = block_in_reg[35 : 16];
+            core_encdec       = block_in_reg[40];
+            core_mode         = block_in_reg[41];
+            core_start        = block_in_reg[42];
+            core_ack          = block_in_reg[43];
+            core_nonce_start  = block_in_reg[63 : 48];
+            core_nonce_length = block_in_reg[83 : 64];
+            core_pc_start     = block_in_reg[105 : 90];
+            core_pc_length    = block_in_reg[125 : 106];
+            block_out_new     = {108'h0, core_cs, core_we, core_addr,
                                  core_tag_ok, core_ready};
           end
 
 
         1:
           begin
-            core_block_rd = block_in;
-            tmp_block_out = core_block_wr;
+            core_block_rd = block_in_reg;
+            block_out_new = core_block_wr;
           end
 
 
         2:
           begin
-            core_tag_in   = block_in;
-            tmp_block_out = core_tag_out;
+            core_tag_in   = block_in_reg;
+            block_out_new = core_tag_out;
           end
 
         3:
           begin
-            core_key[127 : 0] = block_in;
+            core_key[127 : 0] = block_in_reg;
           end
 
         4:
           begin
-            core_key[255 : 128] = block_in;
+            core_key[255 : 128] = block_in_reg;
           end
 
         5:
           begin
-            core_key[383 : 256] = block_in;
+            core_key[383 : 256] = block_in_reg;
           end
 
         6:
           begin
-            core_key[511 : 384] = block_in;
+            core_key[511 : 384] = block_in_reg;
           end
 
         default:
