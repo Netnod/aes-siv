@@ -46,6 +46,8 @@ TB_CMAC_SRC = ../../cmac/src/tb/tb_cmac_core.v
 CORE_SRC = ../src/rtl/aes_siv_core.v $(CMAC_SRC)
 TB_CORE_SRC = ../src/tb/tb_aes_siv_core.v ../src/tb/tb_core_mem.v
 
+TOP_SRC = ../src/rtl/aes_siv.v ../src/tb/tb_core_mem.v $(CORE_SRC)
+
 WRAPPER_SRC = ../src/util/wrapper_aes_siv_core.v $(CORE_SRC)
 
 CC = iverilog
@@ -55,7 +57,11 @@ LINT = verilator
 LINT_FLAGS = +1364-2001ext+ --lint-only  -Wall -Wno-fatal -Wno-DECLFILENAME
 
 
-all: core.sim cmac.sim wrapper.sim
+all: top.sim core.sim cmac.sim wrapper.sim
+
+
+top.sim: $(TOP_SRC)
+	$(CC) $(CC_FLAGS) -o top.sim $(TOP_SRC)
 
 
 core.sim: $(TB_CORE_SRC) $(CORE_SRC)
@@ -80,6 +86,10 @@ sim-cmac: cmac.sim
 
 lint:  $(CORE_SRC)
 	$(LINT) $(LINT_FLAGS) $(CORE_SRC)
+
+
+lint_top:  $(TOP_SRC)
+	$(LINT) $(LINT_FLAGS) $(TOP_SRC)
 
 
 lint_wrapper:  $(WRAPPER_SRC)
