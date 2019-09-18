@@ -52,7 +52,7 @@ module tb_core_mem(
 
 
   localparam NUM_WORDS   = 128;
-  localparam WAIT_CYCLES = 8'h04;
+  localparam WAIT_CYCLES = 8'h01;
 
 
   //----------------------------------------------------------------
@@ -65,6 +65,7 @@ module tb_core_mem(
 
   reg           tmp_ack;
   reg [127 : 0] tmp_block_rd;
+  reg [127 : 0] block_rd_reg;
 
   reg           ack_reg;
   reg           ack_new;
@@ -72,8 +73,8 @@ module tb_core_mem(
 
   //----------------------------------------------------------------
   //----------------------------------------------------------------
-  assign ack = ack_reg;
-  assign block_rd = tmp_block_rd;
+  assign ack      = ack_reg;
+  assign block_rd = block_rd_reg;
 
 
   //----------------------------------------------------------------
@@ -88,19 +89,19 @@ module tb_core_mem(
       integer i;
       if (!reset_n)
         begin
-          for (i = 0 ; i < NUM_WORDS ; i = i + 1)
-            mem[i] <= 128'h0;
-
+          block_rd_reg <= 128'h0;
           wait_ctr_reg <= 8'h0;
           ack_reg      <= 1'h0;
         end
       else
         begin
           wait_ctr_reg <= wait_ctr_new;
-          ack_reg     <= ack_new;
+          ack_reg      <= ack_new;
+
+          block_rd_reg <= mem[addr];
 
           if (mem_we)
-            mem[addr] = block_wr;
+            mem[addr] <= block_wr;
         end
     end // reg_update
 
@@ -124,8 +125,6 @@ module tb_core_mem(
               ack_new = 1'h1;
               if (we)
                 mem_we = 1'h1;
-              else
-                tmp_block_rd = mem[addr];
             end
         end
     end
