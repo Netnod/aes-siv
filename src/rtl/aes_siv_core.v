@@ -183,6 +183,21 @@ module aes_siv_core(
   reg [127 : 0] result_new;
   reg           result_we;
 
+  reg [15 : 0]  ad_num_blocks_reg;
+  reg [15 : 0]  ad_num_blocks_new;
+  reg [7 : 0]   ad_final_size_reg;
+  reg [7 : 0]   ad_final_size_new;
+
+  reg [15 : 0]  nonce_num_blocks_reg;
+  reg [15 : 0]  nonce_num_blocks_new;
+  reg [7 : 0]   nonce_final_size_reg;
+  reg [7 : 0]   nonce_final_size_new;
+
+  reg [15 : 0]  pc_num_blocks_reg;
+  reg [15 : 0]  pc_num_blocks_new;
+  reg [7 : 0]   pc_final_size_reg;
+  reg [7 : 0]   pc_final_size_new;
+
   reg [4 : 0]   core_ctrl_reg;
   reg [4 : 0]   core_ctrl_new;
   reg           core_ctrl_we;
@@ -215,16 +230,8 @@ module aes_siv_core(
 
   reg            s2v_init;
 
-  reg [15 : 0]   ad_num_blocks;
-  reg [7 : 0]    ad_final_size;
   reg            ad_zlen;
-
-  reg [15 : 0]   nonce_num_blocks;
-  reg [7 : 0]    nonce_final_size;
   reg            nonce_zlen;
-
-  reg [15 : 0]   pc_num_blocks;
-  reg [7 : 0]    pc_final_size;
   reg            pc_zlen;
 
   reg            final_wr_block;
@@ -309,26 +316,39 @@ module aes_siv_core(
     begin: reg_update
       if (!reset_n)
         begin
-          ready_reg        <= 1'h1;
-          block_reg        <= 128'h0;
-          result_reg       <= 128'h0;
-          d_reg            <= 128'h0;
-          v_reg            <= 128'h0;
-          x_reg            <= 128'h0;
-          addr_reg         <= 16'h0;
-          cs_reg           <= 1'h0;
-          we_reg           <= 1'h0;
-          block_ctr_reg    <= 16'h0;
-          ad_start_reg     <= 16'h0;;
-          ad_length_reg    <= 20'h0;
-          nonce_start_reg  <= 16'h0;;
-          nonce_length_reg <= 20'h0;
-          pc_start_reg     <= 16'h0;;
-          pc_length_reg    <= 20'h0;
-          core_ctrl_reg    <= CTRL_IDLE;
+          ready_reg            <= 1'h1;
+          block_reg            <= 128'h0;
+          result_reg           <= 128'h0;
+          d_reg                <= 128'h0;
+          v_reg                <= 128'h0;
+          x_reg                <= 128'h0;
+          addr_reg             <= 16'h0;
+          cs_reg               <= 1'h0;
+          we_reg               <= 1'h0;
+          block_ctr_reg        <= 16'h0;
+          ad_start_reg         <= 16'h0;;
+          ad_length_reg        <= 20'h0;
+          ad_num_blocks_reg    <= 16'h0;
+          ad_final_size_reg    <= 8'h0;
+          nonce_start_reg      <= 16'h0;;
+          nonce_length_reg     <= 20'h0;
+          nonce_num_blocks_reg <= 16'h0;
+          nonce_final_size_reg <= 8'h0;
+          pc_start_reg         <= 16'h0;;
+          pc_length_reg        <= 20'h0;
+          pc_num_blocks_reg    <= 16'h0;
+          pc_final_size_reg    <= 8'h0;
+          core_ctrl_reg        <= CTRL_IDLE;
         end
       else
         begin
+          ad_num_blocks_reg    <= ad_num_blocks_new;
+          ad_final_size_reg    <= ad_final_size_new;
+          nonce_num_blocks_reg <= nonce_num_blocks_new;
+          nonce_final_size_reg <= nonce_final_size_new;
+          pc_num_blocks_reg    <= pc_num_blocks_new;
+          pc_final_size_reg    <= pc_final_size_new;
+
           if (ready_we)
             ready_reg <= ready_new;
 
@@ -659,12 +679,12 @@ module aes_siv_core(
   //----------------------------------------------------------------
   always @*
     begin : length_decoder
-      ad_num_blocks    = 16'h0;
-      ad_final_size    = 8'h0;
-      nonce_num_blocks = 16'h0;
-      nonce_final_size = 8'h0;
-      pc_num_blocks    = 16'h0;
-      pc_final_size    = 8'h0;
+      ad_num_blocks_new    = 16'h0;
+      ad_final_size_new    = 8'h0;
+      nonce_num_blocks_new = 16'h0;
+      nonce_final_size_new = 8'h0;
+      pc_num_blocks_new    = 16'h0;
+      pc_final_size_new    = 8'h0;
 
 
       ad_zlen    = ~|ad_length_reg;
@@ -675,13 +695,13 @@ module aes_siv_core(
         begin
           if (ad_length_reg[3 : 0] == 4'h0)
             begin
-              ad_num_blocks = ad_length[19 : 4];
-              ad_final_size = 8'h80;
+              ad_num_blocks_new = ad_length_reg[19 : 4];
+              ad_final_size_new = 8'h80;
             end
           else
             begin
-              ad_num_blocks = ad_length[19 : 4] + 1'h1;
-              ad_final_size = {ad_length[4 : 0], 3'h0};
+              ad_num_blocks_new = ad_length_reg[19 : 4] + 1'h1;
+              ad_final_size_new = {ad_length_reg[4 : 0], 3'h0};
             end
         end
 
@@ -689,13 +709,13 @@ module aes_siv_core(
         begin
           if (nonce_length_reg[3 : 0] == 4'h0)
             begin
-              nonce_num_blocks = nonce_length[19 : 4];
-              nonce_final_size = 8'h80;
+              nonce_num_blocks_new = nonce_length_reg[19 : 4];
+              nonce_final_size_new = 8'h80;
             end
           else
             begin
-              nonce_num_blocks = nonce_length[19 : 4] + 1'h1;
-              nonce_final_size = {nonce_length[4 : 0], 3'h0};
+              nonce_num_blocks_new = nonce_length_reg[19 : 4] + 1'h1;
+              nonce_final_size_new = {nonce_length_reg[4 : 0], 3'h0};
             end
         end
 
@@ -703,13 +723,13 @@ module aes_siv_core(
         begin
           if (pc_length_reg[3 : 0] == 4'h0)
             begin
-              pc_num_blocks = pc_length[19 : 4];
-              pc_final_size = 8'h80;
+              pc_num_blocks_new = pc_length_reg[19 : 4];
+              pc_final_size_new = 8'h80;
             end
           else
             begin
-              pc_num_blocks = pc_length[19 : 4] + 1'h1;
-              pc_final_size = {pc_length[4 : 0], 3'h0};
+              pc_num_blocks_new = pc_length_reg[19 : 4] + 1'h1;
+              pc_final_size_new = {pc_length_reg[4 : 0], 3'h0};
             end
         end
     end
@@ -891,12 +911,12 @@ module aes_siv_core(
                     cs_new = 1'h0;
                     cs_we  = 1'h1;
 
-                    if (ad_num_blocks == 16'h1)
+                    if (ad_num_blocks_reg == 16'h1)
                       begin
                         update_d        = 1'h1;
                         ctrl_d          = D_DBL;
                         cmac_inputs     = CMAC_BLOCK;
-                        cmac_final_size = ad_final_size;
+                        cmac_final_size = ad_final_size_reg;
                         cmac_finalize   = 1'h1;
                         core_ctrl_new   = CTRL_S2V_AD_FINAL;
                         core_ctrl_we    = 1'h1;
@@ -927,13 +947,13 @@ module aes_siv_core(
                     cs_new = 1'h0;
                     cs_we  = 1'h1;
 
-                    if (block_ctr_reg == ad_num_blocks - 1)
+                    if (block_ctr_reg == ad_num_blocks_reg - 1)
                       begin
                         update_d        = 1'h1;
                         ctrl_d          = D_DBL;
                         cmac_finalize   = 1'h1;
                         cmac_inputs     = CMAC_BLOCK;
-                        cmac_final_size = ad_final_size;
+                        cmac_final_size = ad_final_size_reg;
                         core_ctrl_new   = CTRL_S2V_AD_FINAL;
                         core_ctrl_we    = 1'h1;
                       end
@@ -988,12 +1008,12 @@ module aes_siv_core(
                     cs_new = 1'h0;
                     cs_we  = 1'h1;
 
-                    if (nonce_num_blocks == 16'h1)
+                    if (nonce_num_blocks_reg == 16'h1)
                       begin
                         update_d        = 1'h1;
                         ctrl_d          = D_DBL;
                         cmac_inputs     = CMAC_BLOCK;
-                        cmac_final_size = nonce_final_size;
+                        cmac_final_size = nonce_final_size_reg;
                         cmac_finalize   = 1'h1;
                         core_ctrl_new   = CTRL_S2V_NONCE_FINAL;
                         core_ctrl_we    = 1'h1;
@@ -1024,13 +1044,13 @@ module aes_siv_core(
                     cs_new = 1'h0;
                     cs_we  = 1'h1;
 
-                    if (block_ctr_reg == nonce_num_blocks - 1)
+                    if (block_ctr_reg == nonce_num_blocks_reg - 1)
                       begin
                         update_d        = 1'h1;
                         ctrl_d          = D_DBL;
                         cmac_finalize   = 1'h1;
                         cmac_inputs     = CMAC_BLOCK;
-                        cmac_final_size = nonce_final_size;
+                        cmac_final_size = nonce_final_size_reg;
                         core_ctrl_new   = CTRL_S2V_NONCE_FINAL;
                         core_ctrl_we    = 1'h1;
                       end
@@ -1109,16 +1129,16 @@ module aes_siv_core(
                 cs_new = 1'h0;
                 cs_we  = 1'h1;
 
-                if (block_ctr_reg == pc_num_blocks - 1)
+                if (block_ctr_reg == pc_num_blocks_reg - 1)
                   begin
                     cmac_finalize   = 1'h1;
                     cmac_inputs     = CMAC_XOREND1;
-                    cmac_final_size = pc_final_size;
+                    cmac_final_size = pc_final_size_reg;
                     core_ctrl_new   = CTRL_S2V_PC_FINAL2;
                     core_ctrl_we    = 1'h1;
                   end
 
-                else if (block_ctr_reg == pc_num_blocks - 2)
+                else if (block_ctr_reg == pc_num_blocks_reg - 2)
                   begin
                     cmac_next       = 1'h1;
                     cmac_inputs     = CMAC_XOREND0;
@@ -1166,7 +1186,7 @@ module aes_siv_core(
             cmac_inputs   = CMAC_PAD_XOR;
 
             if (pc_length >= 20'h10)
-              cmac_final_size = pc_final_size;
+              cmac_final_size = pc_final_size_reg;
             else
               cmac_final_size = AES_BLOCK_SIZE;
 
@@ -1281,7 +1301,7 @@ module aes_siv_core(
 
         CTRL_CTR_XOR:
           begin
-            if (block_ctr_reg == pc_num_blocks - 1)
+            if (block_ctr_reg == pc_num_blocks_reg - 1)
               final_wr_block = 1'h1;
 
             result_we      = 1'h1;
@@ -1310,7 +1330,7 @@ module aes_siv_core(
                 we_new        = 1'h0;
                 we_we         = 1'h1;
 
-                if (block_ctr_reg == pc_num_blocks - 1)
+                if (block_ctr_reg == pc_num_blocks_reg - 1)
                   begin
                     if (encdec)
                       begin

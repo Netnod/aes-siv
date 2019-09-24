@@ -231,11 +231,11 @@ module tb_aes_siv_core();
       if (show_s2v)
         begin
           $display("ad_start: 0x%08x, ad_length: 0x%08x, ad_zlen: 0x%01x, ad_num_blocks: 0x%08x, ad_final_size: 0x%08x",
-                   dut.ad_start, dut.ad_length, dut.ad_zlen, dut.ad_num_blocks, dut.ad_final_size);
+                   dut.ad_start, dut.ad_length, dut.ad_zlen, dut.ad_num_blocks_reg, dut.ad_final_size_reg);
           $display("nonce_start: 0x%04x, nonce_length: 0x%06x, nonce_zlen: 0x%01x, nonce_num_blocks: 0x%04x, nonce_final_size: 0x%04x",
-                   dut.nonce_start, dut.nonce_length, dut.nonce_zlen, dut.nonce_num_blocks, dut.nonce_final_size);
+                   dut.nonce_start, dut.nonce_length, dut.nonce_zlen, dut.nonce_num_blocks_reg, dut.nonce_final_size_reg);
           $display("pc_start: 0x%08x, pc_length: 0x%08x, pc_zlen: 0x%01x, pc_num_blocks: 0x%08x, pc_final_size: 0x%08x",
-                   dut.pc_start, dut.pc_length, dut.pc_zlen, dut.pc_num_blocks, dut.pc_final_size);
+                   dut.pc_start, dut.pc_length, dut.pc_zlen, dut.pc_num_blocks_reg, dut.pc_final_size_reg);
           $display("d_reg: 0x%016x, d_new: 0x%016x, d_we: 0x%01x",
                    dut.d_reg, dut.d_new, dut.d_we);
           $display("v_reg: 0x%016x, v_we: 0x%01x",
