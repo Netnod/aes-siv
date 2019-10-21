@@ -1540,7 +1540,7 @@ module tb_aes_siv_core();
 
       init_sim();
       reset_dut();
-/*
+
       // S2V and SIV-Encrypt test cases.
       test_all_zero_s2v();
       test_s2v_A1();
@@ -1553,7 +1553,8 @@ module tb_aes_siv_core();
       test_s2v_A1_mod1_decrypt();
       test_s2v_A2_mod1_decrypt();
       test_s2v_A2_mod2_decrypt();
-*/
+
+      // Chrony based test cases.
       test_s2v_chrony_decrypt();
       test_s2v_chrony_encrypt();
 
