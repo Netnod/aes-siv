@@ -1048,6 +1048,7 @@ module tb_aes_siv_core();
 
       dut_mode   = AEAD_AES_SIV_CMAC_256;
       dut_encdec = 1'h0;
+      dut_tag_in = 128'h85632d07_c6e8f37f_950acd32_0a2ecc93;
 
       $display("TC: SIV Decrypt processing started.");
 
