@@ -1294,6 +1294,121 @@ module tb_aes_siv_core();
     end
   endtask // test_s2v_A2_mod2_decrypt
 
+  //----------------------------------------------------------------
+  // test_s2v_chrony_decrypt
+  //
+  // Attempts to decrypt a Chrony cookie.
+  // 6c47f0d3.key
+  // 3fc91575cf885a02820a019e846fa2a68c9aa6543f4c1ebabea74ca0d16aeda8
+  //
+  // Cookie: 6c47f0d3cd65766f2c8fb4cc6b8d5b7aca60c5eca507af99a998d8395e045f75ffa2be8c3b025e7b46a4f2472777e251e4fc36b7ed1287f362cd54b1152488c5873a6fc70ec582beb3640aaae23038c694939e8d71c51d88f6a6def90efc99906cd3c2cb
+  //
+  // C2S: 9e36980572b3cf91a8fb2f29b105a1d95439ebabeb61403e1aba654e9ba56176
+  // S2C: 8f62b677d6c55010504abd646cf394cfc5990605f6032b0e8b7df00667cac34b
+  //----------------------------------------------------------------
+  task test_s2v_chrony_decrypt;
+    begin : test_s2v_chrony_decrypt
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 1;
+      show_s2v  = 1;
+      show_cmac = 1;
+
+      $display("test_s2v_chrony_decrypt: Verify SIV Decrypt functionality.");
+
+      // AD: 0 bytes. Should be ignored.
+      dut_ad_start  = 16'h0000;
+      dut_ad_length = 20'h0;
+
+      // Nonce: 16 bytes.
+      write_block(16'h0010, 128'hcd65766f2c8fb4cc6b8d5b7aca60c5ec);
+      dut_nonce_start  = 16'h0010;
+      dut_nonce_length = 20'h10;
+
+      // Chiphertext 64 bytes
+      write_block(16'h0020, 128'h3b025e7b46a4f2472777e251e4fc36b7);
+      write_block(16'h0021, 128'hed1287f362cd54b1152488c5873a6fc7);
+      write_block(16'h0022, 128'h0ec582beb3640aaae23038c694939e8d);
+      write_block(16'h0023, 128'h71c51d88f6a6def90efc99906cd3c2cb);
+
+      dut_pc_start  = 16'h0020;
+      dut_pc_length = 20'h40;
+
+      dump_mem(16'h0, 16'h24);
+
+      dut_key = {128'h3fc91575cf885a02820a019e846fa2a6,
+                 128'h00000000000000000000000000000000,
+                 128'h8c9aa6543f4c1ebabea74ca0d16aeda8,
+                 128'h00000000000000000000000000000000};
+
+      dut_mode   = AEAD_AES_SIV_CMAC_256;
+      dut_encdec = 1'h0;
+
+      dut_tag_in = 128'ha507af99a998d8395e045f75ffa2be8c;
+
+      $display("TC: SIV Decrypt processing started.");
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+      $display("TC: SIV Decrypt processing should be completed.");
+
+      dump_mem(16'h0, 16'h24);
+
+      if (!dut_tag_ok)
+        begin
+          $display("TC: ERROR - Generated tag did not match generated tag.");
+          $display("TC: Expected: dut_tag_out = %h", dut_tag_out);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (mem.mem[16'h0020] != 128'h9e369805_72b3cf91_a8fb2f29_b105a1d9)
+        begin
+          $display("TC: ERROR - ciphertext incorrect. Expected 9e369805_72b3cf91_a8fb2f29_b105a1d9, got 0x%032x.",
+                   mem.mem[16'h0020]);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (mem.mem[16'h0021] != 128'h5439ebab_eb61403e_1aba654e_9ba56176)
+        begin
+          $display("TC: ERROR - ciphertext incorrect. Expected 5439ebab_eb61403e_1aba654e_9ba56176, got 0x%032x.",
+                   mem.mem[16'h0021]);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (mem.mem[16'h0022] != 128'h8f62b677_d6c55010_504abd64_6cf394cf)
+        begin
+          $display("TC: ERROR - ciphertext incorrect. Expected 8f62b677_d6c55010_504abd64_6cf394cf, got 0x%032x.",
+                   mem.mem[16'h0022]);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (mem.mem[16'h0023] != 128'hc5990605_f6032b0e_8b7df006_67cac34b)
+        begin
+          $display("TC: ERROR - ciphertext incorrect. Expected c5990605_f6032b0e_8b7df006_67cac34b, got 0x%032x.",
+                   mem.mem[16'h0023]);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      if (tc_correct)
+        $display("TC: SUCCESS - Tag and plaintext correct.");
+      else
+        $display("TC: NO SUCCESS - Tag and plaintext NOT correct.");
+      $display("");
+    end
+  endtask
 
   //----------------------------------------------------------------
   // main
@@ -1307,7 +1422,7 @@ module tb_aes_siv_core();
 
       init_sim();
       reset_dut();
-
+/*
       // S2V and SIV-Encrypt test cases.
       test_all_zero_s2v();
       test_s2v_A1();
@@ -1320,6 +1435,8 @@ module tb_aes_siv_core();
       test_s2v_A1_mod1_decrypt();
       test_s2v_A2_mod1_decrypt();
       test_s2v_A2_mod2_decrypt();
+*/
+      test_s2v_chrony_decrypt();
 
       display_test_results();
 
