@@ -619,24 +619,23 @@ module aes_siv_core(
       aes_block  = x_reg;
 
       // Padding of final block when PC < 16 bytes.
-      case (pc_length[4 : 0])
-        5'h00: mask = {{0{8'hff}},  {16{8'h0}}};
-        5'h01: mask = {{1{8'hff}},  {15{8'h0}}};
-        5'h02: mask = {{2{8'hff}},  {14{8'h0}}};
-        5'h03: mask = {{3{8'hff}},  {13{8'h0}}};
-        5'h04: mask = {{4{8'hff}},  {12{8'h0}}};
-        5'h05: mask = {{5{8'hff}},  {11{8'h0}}};
-        5'h06: mask = {{6{8'hff}},  {10{8'h0}}};
-        5'h07: mask = {{7{8'hff}},  {9{8'h0}}};
-        5'h08: mask = {{8{8'hff}},  {8{8'h0}}};
-        5'h09: mask = {{9{8'hff}},  {7{8'h0}}};
-        5'h0a: mask = {{10{8'hff}}, {6{8'h0}}};
-        5'h0b: mask = {{11{8'hff}}, {5{8'h0}}};
-        5'h0c: mask = {{12{8'hff}}, {4{8'h0}}};
-        5'h0d: mask = {{13{8'hff}}, {3{8'h0}}};
-        5'h0e: mask = {{14{8'hff}}, {2{8'h0}}};
-        5'h0f: mask = {{15{8'hff}}, {1{8'h0}}};
-        5'h10: mask = {{16{8'hff}}, {0{8'h0}}};
+      case (pc_length[3 : 0])
+        4'h0: mask = {{16{8'hff}}, {0{8'h0}}};
+        4'h1: mask = {{1{8'hff}},  {15{8'h0}}};
+        4'h2: mask = {{2{8'hff}},  {14{8'h0}}};
+        4'h3: mask = {{3{8'hff}},  {13{8'h0}}};
+        4'h4: mask = {{4{8'hff}},  {12{8'h0}}};
+        4'h5: mask = {{5{8'hff}},  {11{8'h0}}};
+        4'h6: mask = {{6{8'hff}},  {10{8'h0}}};
+        4'h7: mask = {{7{8'hff}},  {9{8'h0}}};
+        4'h8: mask = {{8{8'hff}},  {8{8'h0}}};
+        4'h9: mask = {{9{8'hff}},  {7{8'h0}}};
+        4'ha: mask = {{10{8'hff}}, {6{8'h0}}};
+        4'hb: mask = {{11{8'hff}}, {5{8'h0}}};
+        4'hc: mask = {{12{8'hff}}, {4{8'h0}}};
+        4'hd: mask = {{13{8'hff}}, {3{8'h0}}};
+        4'he: mask = {{14{8'hff}}, {2{8'h0}}};
+        4'hf: mask = {{15{8'hff}}, {1{8'h0}}};
         default:
           begin
             mask = 128'h0;
