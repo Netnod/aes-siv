@@ -408,6 +408,20 @@ module tb_aes_siv_core();
     end
   endtask // write_block
 
+  //----------------------------------------------------------------
+  // reset_mem()
+  //
+  // Write the given block to the entire test mem.
+  //----------------------------------------------------------------
+  task reset_mem(input [127 : 0] block);
+    begin : reset_mems
+      reg [16 : 0] addr;
+      $display("*** reset_mem write 0x%032x to all cells.", block);
+      for (addr = 0; addr <= 17'h1_0000; addr = addr + 1)
+        mem.mem[addr[15:0]] = block;
+    end
+  endtask // reset_mem
+
 
   //----------------------------------------------------------------
   // read_block()
@@ -1528,6 +1542,128 @@ module tb_aes_siv_core();
     end
   endtask
 
+  //----------------------------------------------------------------
+  //
+  // NTS Authentication Testcase
+  //
+  // key        = unhexlify('''2be26209 fdc335d0 13aeb45a ecd91f1a
+  //                           a4e1055b 8f7fdae8 c592b87d 09200b74''')
+  // nonce      = unhexlify('''7208a18a 82f9a600 130d32d0 5c9d74dd''')
+  // ad         = unhexlify('''23000020 00000000 00000000 00000000
+  //                           00000000 00000000 00000000 00000000
+  //                           00000000 00000000 40478317 6d76ee40
+  //                           01040024 62733aee 2f65b707 8698f4f1
+  //                           b42cf4f8 bb7149ed d0b8a6d2 426a823c
+  //                           a6563ff5 02040068 ea0e3f0d 06043007
+  //                           46b5d7c0 9f9e2a29 a785c2b9 b6d49397
+  //                           1faefc47 977295e2 127b7dfd dcfa59ed
+  //                           82e24e32 94789bb2 0d7dddf8 a5c7d998
+  //                           2ce752f0 775ab86e 985a57f2 d34cac37
+  //                           d6621199 d600a4fd af6de2b8 a70bfdd6
+  //                           1b072c09 10d5e57a 1956a84c''')
+  // ciphertext = unhexlify('''464470e5 98f324b7 31647dde 6191623e''')
+  // expected_plaintext  = unhexlify('''''')
+  //----------------------------------------------------------------
+
+  task test_nts_authentication;
+    begin : test_nts_authentication
+      inc_tc_ctr();
+      tc_correct = 1;
+
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+
+      $display("test_nts_athentication: Verify AD=NTSPacket PC=Empty functionality.");
+
+      reset_mem(128'hdeadbeef_deadbeef_deadbeef_deadbeef);
+
+      // AD: 0xBC bytes
+      write_block(16'h0000, 128'h23000020_00000000_00000000_00000000 );
+      write_block(16'h0001, 128'h00000000_00000000_00000000_00000000 );
+      write_block(16'h0002, 128'h00000000_00000000_40478317_6d76ee40 );
+      write_block(16'h0003, 128'h01040024_62733aee_2f65b707_8698f4f1 );
+      write_block(16'h0004, 128'hb42cf4f8_bb7149ed_d0b8a6d2_426a823c );
+      write_block(16'h0005, 128'ha6563ff5_02040068_ea0e3f0d_06043007 );
+      write_block(16'h0006, 128'h46b5d7c0_9f9e2a29_a785c2b9_b6d49397 );
+      write_block(16'h0007, 128'h1faefc47_977295e2_127b7dfd_dcfa59ed );
+      write_block(16'h0008, 128'h82e24e32_94789bb2_0d7dddf8_a5c7d998 );
+      write_block(16'h0009, 128'h2ce752f0_775ab86e_985a57f2_d34cac37 );
+      write_block(16'h000a, 128'hd6621199_d600a4fd_af6de2b8_a70bfdd6 );
+      write_block(16'h000b, 128'h1b072c09_10d5e57a_1956a84c_00000000 );
+      dut_ad_start  = 16'h0000;
+      dut_ad_length = 20'hbc;
+
+      // Nonce: 16 bytes.
+      write_block(16'h000d, 128'h7208a18a_82f9a600_130d32d0_5c9d74dd );
+      dut_nonce_start  = 16'h00d;
+      dut_nonce_length = 20'h10;
+
+      // Plaintext: Zero bytes
+      dut_pc_start  = 16'h00f;
+      dut_pc_length = 20'h0;
+
+      dump_mem(16'h0, 16'h11);
+
+      dut_key = { 128'h2be26209_fdc335d0_13aeb45a_ecd91f1a,
+                  128'h0,
+                  128'ha4e1055b_8f7fdae8_c592b87d_09200b74,
+                  128'h0 };
+
+      dut_mode   = AEAD_AES_SIV_CMAC_256;
+      dut_encdec = 1'h0;
+
+      dut_tag_in = 128'h464470e5_98f324b7_31647dde_6191623e;
+
+      $display("TC: SIV Decrypt processing started.");
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+
+      $display("TC: SIV Decrypt processing should be completed.");
+
+      dump_mem(16'h0, 16'h11);
+
+      if (dut_tag_ok != 'b1)
+        begin
+          $display("TC: ERROR - tag expected 1, was %h", dut_tag_ok);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      //Corrupt AD to verify AES-SIV core detects authentication failures
+      write_block(16'h0000, 128'h23000020_00000000_00000000_00000001 ); // <-- lsb changed
+
+      $display("TC: SIV Decrypt processing started (1 bit of AD changed).");
+
+      dut_start = 1'h1;
+      #(CLK_PERIOD);
+      dut_start = 1'h0;
+
+      wait_ready();
+      #(2 * CLK_PERIOD);
+
+      $display("TC: SIV Decrypt processing should be completed.");
+
+      dump_mem(16'h0, 16'h11);
+
+      if (dut_tag_ok != 'b0)
+        begin
+          $display("TC: ERROR - tag expected 0, was %h", dut_tag_ok);
+          tc_correct = 0;
+          inc_error_ctr();
+        end
+
+      debug_dut = 0;
+      show_s2v  = 0;
+      show_cmac = 0;
+
+    end
+  endtask
 
   //----------------------------------------------------------------
   // main
@@ -1558,6 +1694,9 @@ module tb_aes_siv_core();
       // Chrony based test cases.
       test_s2v_chrony_decrypt();
       test_s2v_chrony_encrypt();
+
+      //NTS authentication test
+      test_nts_authentication();
 
       display_test_results();
 
