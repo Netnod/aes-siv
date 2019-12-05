@@ -76,6 +76,10 @@ wrapper.sim: $(WRAPPER_SRC)
 	$(CC) $(CC_FLAGS) -o wrapper.sim $(WRAPPER_SRC)
 
 
+sim-top: top.sim
+	./top.sim
+
+
 sim-core: core.sim
 	./core.sim
 
@@ -97,6 +101,7 @@ lint_wrapper:  $(WRAPPER_SRC)
 
 
 clean:
+	rm -f top.sim
 	rm -f core.sim
 	rm -f cmac.sim
 	rm -f wrapper.sim
