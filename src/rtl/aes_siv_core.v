@@ -794,7 +794,6 @@ module aes_siv_core(
       s2v_init        = 1'h0;
       init_ctr        = 1'h0;
       update_ctr      = 1'h0;
-      result_new      = 128'h0;
       result_we       = 1'h0;
       cmac_inputs     = CMAC_ZEROES;
       update_d        = 1'h0;
