@@ -206,7 +206,6 @@ module aes_siv_core(
   //----------------------------------------------------------------
   // Wires.
   //----------------------------------------------------------------
-  reg            aes_init;
   reg            aes_next;
   reg [255 : 0]  aes_key;
   reg            aes_keylen;
@@ -277,8 +276,6 @@ module aes_siv_core(
                .clk(clk),
                .reset_n(reset_n),
 
-               .encdec(1'h1),
-               .init(aes_init),
                .next(aes_next),
                .ready(aes_ready),
 
@@ -782,7 +779,6 @@ module aes_siv_core(
     begin : core_ctrl
       ready_new       = 1'h0;
       ready_we        = 1'h0;
-      aes_init        = 1'h0;
       aes_next        = 1'h0;
       cmac_final_size = 8'h0;
       cmac_init       = 1'h0;
@@ -1250,7 +1246,6 @@ module aes_siv_core(
               end
             else
               begin
-                aes_init      = 1'h1;
                 addr_set      = 1'h1;
                 addr_mux      = ADDR_PC;
                 init_ctr      = 1'h1;

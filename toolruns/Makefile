@@ -38,7 +38,7 @@
 #
 #===================================================================
 AES_SRC_PATH = ../../aes/src/rtl
-AES_SRC = $(AES_SRC_PATH)/aes_core.v $(AES_SRC_PATH)/aes_decipher_block.v $(AES_SRC_PATH)/aes_encipher_block.v $(AES_SRC_PATH)/aes_inv_sbox.v $(AES_SRC_PATH)/aes_key_mem.v  $(AES_SRC_PATH)/aes_sbox.v
+AES_SRC = $(AES_SRC_PATH)/aes_core.v $(AES_SRC_PATH)/aes_encipher_block.v $(AES_SRC_PATH)/aes_key_mem.v  $(AES_SRC_PATH)/aes_sbox.v
 
 CMAC_SRC = ../../cmac/src/rtl/cmac_core.v $(AES_SRC)
 TB_CMAC_SRC = ../../cmac/src/tb/tb_cmac_core.v

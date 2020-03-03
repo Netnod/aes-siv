@@ -206,8 +206,8 @@ module tb_aes_siv_core();
       if (show_aes)
         begin
           $display("AES:");
-          $display("aes_ready: 0x%01x, aes_init: 0x%01x, aes_next: 0x%01x",
-                   dut.aes_ready, dut.aes_init, dut.aes_next);
+          $display("aes_ready: 0x%01x, aes_next: 0x%01x",
+                   dut.aes_ready, dut.aes_next);
           $display("aes_keylen: 0x%01x, aes_key: 0x%032x", dut.aes_keylen, dut.aes_key);
           $display("aes_block: 0x%016x, aes_result: 0x%016x", dut.aes_block, dut.aes_result);
           $display("x_reg: 0x%016x, x_new: 0x%016x, x_we: 0x%01x",
