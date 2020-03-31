@@ -129,6 +129,9 @@ module aes_siv_core(
 
   localparam AES_BLOCK_SIZE = 128;
 
+  localparam ECB_MODE  = 1'h0;
+  localparam CMAC_MODE = 1'h1;
+
 
   //----------------------------------------------------------------
   // Registers including update variables and write enable.
@@ -242,6 +245,8 @@ module aes_siv_core(
   reg            update_block;
   reg [2 : 0]    block_mux;
 
+  reg            cipher_mode;
+
 
   //----------------------------------------------------------------
   // Concurrent connectivity for ports etc.
@@ -271,34 +276,28 @@ module aes_siv_core(
   //----------------------------------------------------------------
   // core instantiations.
   //----------------------------------------------------------------
-  // AES core is only used for CTR part.
-  aes_core aes(
-               .clk(clk),
-               .reset_n(reset_n),
-
-               .next(aes_next),
-               .ready(aes_ready),
-
-               .key(aes_key),
-               .keylen(aes_keylen),
-
-               .block(aes_block),
-               .result(aes_result)
-               );
-
-
   cmac_core cmac(
                  .clk(clk),
                  .reset_n(reset_n),
-                 .key(cmac_key),
-                 .keylen(cmac_keylen),
-                 .final_size(cmac_final_size),
-                 .init(cmac_init),
-                 .next(cmac_next),
-                 .finalize(cmac_finalize),
-                 .block(cmac_block),
-                 .result(cmac_result),
-                 .ready(cmac_ready)
+
+                 .mode(cipher_mode),
+
+                 .ecb_next(aes_next),
+                 .ecb_ready(aes_ready),
+                 .ecb_key(aes_key),
+                 .ecb_keylen(aes_keylen),
+                 .ecb_block(aes_block),
+                 .ecb_result(aes_result),
+
+                 .cmac_key(cmac_key),
+                 .cmac_keylen(cmac_keylen),
+                 .cmac_final_size(cmac_final_size),
+                 .cmac_init(cmac_init),
+                 .cmac_next(cmac_next),
+                 .cmac_finalize(cmac_finalize),
+                 .cmac_block(cmac_block),
+                 .cmac_result(cmac_result),
+                 .cmac_ready(cmac_ready)
                 );
 
 
@@ -802,6 +801,7 @@ module aes_siv_core(
       update_block    = 1'h0;
       final_wr_block  = 1'h0;
       block_mux       = BLOCK_XOR;
+      cipher_mode     = CMAC_MODE;
       core_ctrl_new   = CTRL_IDLE;
       core_ctrl_we    = 1'h0;
 
@@ -821,6 +821,7 @@ module aes_siv_core(
                   end
                 else
                   begin
+                    cipher_mode   = ECB_MODE;
                     s2v_init      = 1'h1;
                     ready_new     = 1'h0;
                     ready_we      = 1'h1;
@@ -1199,6 +1200,7 @@ module aes_siv_core(
                   begin
                     if (encdec)
                       begin
+                        cipher_mode   = ECB_MODE;
                         core_ctrl_new = CTRL_CTR_INIT;
                         core_ctrl_we  = 1'h1;
                       end
@@ -1246,6 +1248,7 @@ module aes_siv_core(
               end
             else
               begin
+                cipher_mode   = ECB_MODE;
                 addr_set      = 1'h1;
                 addr_mux      = ADDR_PC;
                 init_ctr      = 1'h1;
@@ -1257,6 +1260,7 @@ module aes_siv_core(
 
         CTRL_CTR_NEXT:
           begin
+            cipher_mode = ECB_MODE;
             if (aes_ready)
               begin
                 aes_next      = 1'h1;
@@ -1268,6 +1272,7 @@ module aes_siv_core(
 
         CTRL_CTR_READ:
           begin
+            cipher_mode = ECB_MODE;
             if (aes_ready)
               begin
                 cs_new        = 1'h1;
@@ -1280,6 +1285,7 @@ module aes_siv_core(
 
         CTRL_CTR_RACK:
           begin
+            cipher_mode = ECB_MODE;
             if (ack)
               begin
                 cs_new        = 1'h0;
@@ -1294,6 +1300,7 @@ module aes_siv_core(
 
         CTRL_CTR_XOR:
           begin
+            cipher_mode = ECB_MODE;
             if (block_ctr_reg == pc_num_blocks_reg - 1)
               final_wr_block = 1'h1;
 
@@ -1306,6 +1313,7 @@ module aes_siv_core(
 
         CTRL_CTR_WRITE:
           begin
+            cipher_mode   = ECB_MODE;
             cs_new        = 1'h1;
             cs_we         = 1'h1;
             we_new        = 1'h1;
@@ -1340,6 +1348,7 @@ module aes_siv_core(
                   end
                 else
                   begin
+                    cipher_mode   = ECB_MODE;
                     addr_inc      = 1'h1;
                     core_ctrl_new = CTRL_CTR_NEXT;
                     core_ctrl_we  = 1'h1;
