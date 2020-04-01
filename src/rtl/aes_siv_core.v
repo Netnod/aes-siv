@@ -280,7 +280,7 @@ module aes_siv_core(
                  .clk(clk),
                  .reset_n(reset_n),
 
-                 .mode(cipher_mode),
+                 .cipher_mode(cipher_mode),
 
                  .ecb_next(aes_next),
                  .ecb_ready(aes_ready),

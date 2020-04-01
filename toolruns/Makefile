@@ -57,7 +57,7 @@ LINT = verilator
 LINT_FLAGS = +1364-2001ext+ --lint-only  -Wall -Wno-fatal -Wno-DECLFILENAME
 
 
-all: top.sim core.sim cmac.sim wrapper.sim
+all: top.sim core.sim wrapper.sim
 
 
 top.sim: $(TOP_SRC)
@@ -66,10 +66,6 @@ top.sim: $(TOP_SRC)
 
 core.sim: $(TB_CORE_SRC) $(CORE_SRC)
 	$(CC) $(CC_FLAGS) -o core.sim $(TB_CORE_SRC) $(CORE_SRC)
-
-
-cmac.sim: $(TB_CMAC_SRC) $(CMAC_SRC)
-	$(CC) $(CC_FLAGS) -o cmac.sim $(TB_CMAC_SRC) $(CMAC_SRC)
 
 
 wrapper.sim: $(WRAPPER_SRC)
@@ -103,7 +99,6 @@ lint_wrapper:  $(WRAPPER_SRC)
 clean:
 	rm -f top.sim
 	rm -f core.sim
-	rm -f cmac.sim
 	rm -f wrapper.sim
 
 help:
