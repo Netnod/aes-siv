@@ -616,7 +616,7 @@ module aes_siv_core(
 
       // Padding of final block when PC < 16 bytes.
       case (pc_length[3 : 0])
-        4'h0: mask = {{16{8'hff}}, {0{8'h0}}};
+        4'h0: mask = {16{8'hff}};
         4'h1: mask = {{1{8'hff}},  {15{8'h0}}};
         4'h2: mask = {{2{8'hff}},  {14{8'h0}}};
         4'h3: mask = {{3{8'hff}},  {13{8'h0}}};
